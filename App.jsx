@@ -26,7 +26,10 @@ const CLAIM_STATUS = [
 
 export default function App(){
 
+const [installPrompt,setInstallPrompt]=useState(null);
+
 const [vehicles,setVehicles]=useState(
+
 ()=>JSON.parse(localStorage.getItem("vehicles")||"[]")
 );
 
