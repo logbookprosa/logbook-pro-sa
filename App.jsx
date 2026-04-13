@@ -15,6 +15,18 @@ const VEHICLE_TYPES = [
 "Other"
 ];
 
+const COST_TYPES = [
+"Fuel",
+"Service",
+"Repairs",
+"Tyres",
+"Insurance",
+"Licence",
+"Tolls",
+"Parking",
+"Other"
+];
+
 const CLAIM_STATUS = [
 "Open",
 "Submitted",
@@ -45,9 +57,15 @@ const [claims,setClaims]=useState(
 ()=>JSON.parse(localStorage.getItem("claims")||"[]")
 );
 
+const [costs,setCosts]=useState(
+()=>JSON.parse(localStorage.getItem("costs")||"[]")
+);
+
 const [activeTab,setActiveTab]=useState("dashboard");
 useEffect(()=>{
 
+
+  
 window.addEventListener("beforeinstallprompt",(e)=>{
 e.preventDefault();
 setInstallPrompt(e);
@@ -70,6 +88,10 @@ localStorage.setItem("trips",JSON.stringify(trips));
 useEffect(()=>{
 localStorage.setItem("claims",JSON.stringify(claims));
 },[claims]);
+
+useEffect(()=>{
+localStorage.setItem("costs",JSON.stringify(costs));
+},[costs]);
 
 const addVehicle = ()=>{
 setVehicles([
@@ -127,6 +149,20 @@ description:""
 ]);
 };
 
+const addCost = ()=>{
+setCosts([
+...costs,
+{
+id:uid(),
+date:today(),
+vehicle:"",
+type:"Fuel",
+amount:"",
+notes:""
+}
+]);
+}; 
+  
 return (
 
 <div style={{maxWidth:480,margin:"0 auto",paddingBottom:80}}>
@@ -425,7 +461,88 @@ x.id===c.id ?
 </div>
 
 )}
+  
+{activeTab==="costs" && (
 
+<div style={{padding:16}}>
+
+<button onClick={addCost}>
++ Add Cost
+</button>
+
+{costs.map(c=>(
+
+<div key={c.id} className="card">
+
+<input
+type="date"
+value={c.date}
+onChange={e=>{
+setCosts(
+costs.map(x=>
+x.id===c.id ?
+{...x,date:e.target.value}
+:x
+)
+);
+}}
+/>
+
+<select
+value={c.type}
+onChange={e=>{
+setCosts(
+costs.map(x=>
+x.id===c.id ?
+{...x,type:e.target.value}
+:x
+)
+);
+}}
+>
+
+{COST_TYPES.map(t=>(
+<option key={t}>{t}</option>
+))}
+
+</select>
+
+<input
+placeholder="Amount"
+value={c.amount}
+onChange={e=>{
+setCosts(
+costs.map(x=>
+x.id===c.id ?
+{...x,amount:e.target.value}
+:x
+)
+);
+}}
+/>
+
+<textarea
+placeholder="Notes"
+value={c.notes}
+onChange={e=>{
+setCosts(
+costs.map(x=>
+x.id===c.id ?
+{...x,notes:e.target.value}
+:x
+)
+);
+}}
+/>
+
+</div>
+
+))}
+
+</div>
+
+)}
+  
 {/* NAVIGATION */}
 
 <div style={{
@@ -438,7 +555,7 @@ background:"white",
 borderTop:"1px solid #eee"
 }}>
 
-{["dashboard","vehicles","drivers","claims"]
+{["dashboard","vehicles","drivers","claims","costs"]
 .map(t=>(
 
 <button
