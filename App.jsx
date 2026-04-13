@@ -376,7 +376,7 @@ display:"flex"
 }}
 >
 
-[
+{[
 "dashboard",
 "vehicles",
 "drivers",
@@ -403,7 +403,7 @@ active===t
 
 </button>
 
-))
+))}
 
 </div>
 
