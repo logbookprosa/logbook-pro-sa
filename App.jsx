@@ -15,6 +15,15 @@ const VEHICLE_TYPES = [
 "Other"
 ];
 
+const CLAIM_STATUS = [
+"Open",
+"Submitted",
+"In Progress",
+"Approved",
+"Rejected",
+"Closed"
+];
+
 const COST_TYPES = [
 "Fuel",
 "Service",
@@ -27,21 +36,36 @@ const COST_TYPES = [
 "Other"
 ];
 
-const CLAIM_STATUS = [
-"Open",
-"Submitted",
-"In Progress",
-"Approved",
-"Rejected",
-"Closed"
-];
+const LIMITS = {
+free:{
+vehicles:2,
+drivers:3
+},
+pro:{
+vehicles:999,
+drivers:999
+}
+};
+
+const ADMIN_EMAIL = "logbookprosa@gmail.com";
 
 export default function App(){
 
 const [installPrompt,setInstallPrompt]=useState(null);
 
-const [vehicles,setVehicles]=useState(
+const [subscription,setSubscription]=useState(
+()=>JSON.parse(localStorage.getItem("subscription")||"free")
+);
 
+const [user,setUser]=useState(
+()=>JSON.parse(localStorage.getItem("user")||"null")
+);
+
+const [fleet,setFleet]=useState(
+()=>JSON.parse(localStorage.getItem("fleet")||"{}")
+);
+
+const [vehicles,setVehicles]=useState(
 ()=>JSON.parse(localStorage.getItem("vehicles")||"[]")
 );
 
@@ -61,17 +85,30 @@ const [costs,setCosts]=useState(
 ()=>JSON.parse(localStorage.getItem("costs")||"[]")
 );
 
+const [feedback,setFeedback]=useState("");
+
 const [activeTab,setActiveTab]=useState("dashboard");
+
+const isAdmin = user?.email === ADMIN_EMAIL;
+
 useEffect(()=>{
-
-
-  
 window.addEventListener("beforeinstallprompt",(e)=>{
 e.preventDefault();
 setInstallPrompt(e);
 });
-
 },[]);
+
+useEffect(()=>{
+localStorage.setItem("subscription",subscription);
+},[subscription]);
+
+useEffect(()=>{
+localStorage.setItem("user",JSON.stringify(user));
+},[user]);
+
+useEffect(()=>{
+localStorage.setItem("fleet",JSON.stringify(fleet));
+},[fleet]);
 
 useEffect(()=>{
 localStorage.setItem("vehicles",JSON.stringify(vehicles));
@@ -93,87 +130,127 @@ useEffect(()=>{
 localStorage.setItem("costs",JSON.stringify(costs));
 },[costs]);
 
-const addVehicle = ()=>{
-setVehicles([
-...vehicles,
-{
-id:uid(),
-make:"",
-model:"",
-reg:"",
-type:"Car",
-licenceExpiry:"",
-insuranceExpiry:""
+if(!user){
+
+return(
+
+<div style={{padding:20,maxWidth:480,margin:"0 auto"}}>
+
+<h2>Logbook Pro SA</h2>
+
+<input
+placeholder="Your Name"
+onChange={e=>setUser({
+...user,
+name:e.target.value
+})}
+/>
+
+<input
+placeholder="Company / Organisation"
+onChange={e=>setUser({
+...user,
+company:e.target.value
+})}
+/>
+
+<input
+placeholder="Email"
+onChange={e=>setUser({
+...user,
+email:e.target.value
+})}
+/>
+
+<button
+onClick={()=>setUser({...user})}
+style={{marginTop:20,padding:12,width:"100%"}}
+>
+
+Start Using App
+
+</button>
+
+</div>
+
+);
+
 }
-]);
+
+const totalCosts = costs.reduce(
+(sum,c)=>sum + Number(c.amount || 0),
+0
+);
+
+const businessKm = trips
+.filter(t=>t.type==="Business")
+.reduce(
+(sum,t)=>sum + Number(t.km || 0),
+0
+);
+
+const exportData = ()=>{
+
+const data = {
+user,
+fleet,
+vehicles,
+drivers,
+trips,
+costs,
+claims
 };
 
-const addDriver = ()=>{
-setDrivers([
-...drivers,
-{
-id:uid(),
-name:"",
-licence:"",
-licenceExpiry:"",
-pdpExpiry:""
-}
-]);
+const blob = new Blob(
+[JSON.stringify(data,null,2)],
+{type:"application/json"}
+);
+
+const url = URL.createObjectURL(blob);
+
+const a = document.createElement("a");
+
+a.href = url;
+
+a.download = "Logbook-Pro-SA-Export.json";
+
+a.click();
+
 };
 
-const addTrip = ()=>{
-setTrips([
-...trips,
-{
-id:uid(),
-date:today(),
-vehicle:"",
-start:"",
-end:"",
-type:"Business"
-}
-]);
-};
-
-const addClaim = ()=>{
-setClaims([
-...claims,
-{
-id:uid(),
-date:today(),
-vehicle:"",
-driver:"",
-status:"Open",
-description:""
-}
-]);
-};
-
-const addCost = ()=>{
-setCosts([
-...costs,
-{
-id:uid(),
-date:today(),
-vehicle:"",
-type:"Fuel",
-amount:"",
-notes:""
-}
-]);
-}; 
-  
-return (
+return(
 
 <div style={{maxWidth:480,margin:"0 auto",paddingBottom:80}}>
 
 {/* HEADER */}
 
 <div style={{
-background:"#1a2a6c",
+background:"linear-gradient(135deg,#1a2a6c,#2c5fff)",
 color:"white",
-padding:16
+padding:18,
+borderBottomLeftRadius:20,
+borderBottomRightRadius:20
 }}>
+
+<div style={{fontWeight:800,fontSize:20}}>
+Logbook Pro SA
+</div>
+
+<div style={{fontSize:12,opacity:.8}}>
+Fleet & SARS Logbook Platform
+</div>
+
+<div style={{
+fontSize:10,
+background:"#ffcc00",
+color:"#000",
+display:"inline-block",
+padding:"2px 8px",
+borderRadius:10,
+marginTop:6
+}}>
+Beta
+</div>
 
 {installPrompt && (
 
@@ -185,8 +262,7 @@ padding:"8px 14px",
 borderRadius:20,
 border:"none",
 background:"#ffcc00",
-fontWeight:700,
-cursor:"pointer"
+fontWeight:700
 }}
 >
 
@@ -195,14 +271,6 @@ cursor:"pointer"
 </button>
 
 )}
-  
-<div style={{fontWeight:800,fontSize:18}}>
-Logbook Pro SA
-</div>
-
-<div style={{fontSize:12,opacity:.7}}>
-Fleet & SARS Logbook
-</div>
 
 </div>
 
@@ -213,337 +281,107 @@ Fleet & SARS Logbook
 <div style={{padding:16}}>
 
 <div className="card">
-Vehicles: {vehicles.length}
+🚗 Vehicles: {vehicles.length}
 </div>
 
 <div className="card">
-Drivers: {drivers.length}
+👨‍✈️ Drivers: {drivers.length}
 </div>
 
 <div className="card">
-Trips: {trips.length}
+📍 Trips: {trips.length}
 </div>
 
 <div className="card">
-Claims: {claims.length}
+💰 Costs: R {totalCosts.toFixed(2)}
+</div>
+
+<div className="card">
+💼 Business KM: {businessKm}
 </div>
 
 </div>
 
 )}
 
-{/* VEHICLES */}
+{/* EXPORT */}
 
-{activeTab==="vehicles" && (
+{activeTab==="export" && (
 
 <div style={{padding:16}}>
 
-<button onClick={addVehicle}>
-+ Add Vehicle
+<div className="card">
+
+<button onClick={exportData}>
+Export Data
 </button>
 
-{vehicles.map(v=>(
+</div>
 
-<div key={v.id} className="card">
+</div>
 
-<input
-placeholder="Make"
-value={v.make}
-onChange={e=>{
-setVehicles(
-vehicles.map(x=>
-x.id===v.id ?
-{...x,make:e.target.value}
-:x
-)
-);
-}}
-/>
+)}
 
-<input
-placeholder="Model"
-value={v.model}
-onChange={e=>{
-setVehicles(
-vehicles.map(x=>
-x.id===v.id ?
-{...x,model:e.target.value}
-:x
-)
-);
-}}
-/>
+{/* SUBSCRIPTION */}
 
-<input
-placeholder="Registration"
-value={v.reg}
-onChange={e=>{
-setVehicles(
-vehicles.map(x=>
-x.id===v.id ?
-{...x,reg:e.target.value}
-:x
-)
-);
-}}
-/>
+{activeTab==="subscription" && (
 
-<select
-value={v.type}
-onChange={e=>{
-setVehicles(
-vehicles.map(x=>
-x.id===v.id ?
-{...x,type:e.target.value}
-:x
-)
-);
-}}
+<div style={{padding:16}}>
+
+<div className="card">
+
+Current Plan: {subscription}
+
+<button
+onClick={()=>setSubscription("pro")}
+style={{marginTop:10}}
 >
 
-{VEHICLE_TYPES.map(t=>(
-<option key={t}>{t}</option>
-))}
+Upgrade Pro
 
-</select>
+</button>
 
 </div>
-
-))}
 
 </div>
 
 )}
 
-{/* DRIVERS */}
+{/* FEEDBACK */}
 
-{activeTab==="drivers" && (
-
-<div style={{padding:16}}>
-
-<button onClick={addDriver}>
-+ Add Driver
-</button>
-
-{drivers.map(d=>(
-
-<div key={d.id} className="card">
-
-<input
-placeholder="Driver Name"
-value={d.name}
-onChange={e=>{
-setDrivers(
-drivers.map(x=>
-x.id===d.id ?
-{...x,name:e.target.value}
-:x
-)
-);
-}}
-/>
-
-<input
-placeholder="Licence"
-value={d.licence}
-onChange={e=>{
-setDrivers(
-drivers.map(x=>
-x.id===d.id ?
-{...x,licence:e.target.value}
-:x
-)
-);
-}}
-/>
-
-<input
-type="date"
-value={d.licenceExpiry}
-onChange={e=>{
-setDrivers(
-drivers.map(x=>
-x.id===d.id ?
-{...x,licenceExpiry:e.target.value}
-:x
-)
-);
-}}
-/>
-
-<input
-type="date"
-value={d.pdpExpiry}
-onChange={e=>{
-setDrivers(
-drivers.map(x=>
-x.id===d.id ?
-{...x,pdpExpiry:e.target.value}
-:x
-)
-);
-}}
-/>
-
-</div>
-
-))}
-
-</div>
-
-)}
-
-{/* CLAIMS */}
-
-{activeTab==="claims" && (
+{activeTab==="feedback" && (
 
 <div style={{padding:16}}>
 
-<button onClick={addClaim}>
-+ Add Claim
-</button>
-
-{claims.map(c=>(
-
-<div key={c.id} className="card">
-
-<input
-type="date"
-value={c.date}
-onChange={e=>{
-setClaims(
-claims.map(x=>
-x.id===c.id ?
-{...x,date:e.target.value}
-:x
-)
-);
-}}
-/>
-
-<select
-value={c.status}
-onChange={e=>{
-setClaims(
-claims.map(x=>
-x.id===c.id ?
-{...x,status:e.target.value}
-:x
-)
-);
-}}
->
-
-{CLAIM_STATUS.map(s=>(
-<option key={s}>{s}</option>
-))}
-
-</select>
+<div className="card">
 
 <textarea
-placeholder="Description"
-value={c.description}
-onChange={e=>{
-setClaims(
-claims.map(x=>
-x.id===c.id ?
-{...x,description:e.target.value}
-:x
-)
-);
-}}
+placeholder="Feedback"
+value={feedback}
+onChange={e=>setFeedback(e.target.value)}
+style={{width:"100%",height:120}}
 />
 
-</div>
+<button
+onClick={()=>{
 
-))}
+alert("Thank you!");
+setFeedback("");
 
-</div>
-
-)}
-  
-{activeTab==="costs" && (
-
-<div style={{padding:16}}>
-
-<button onClick={addCost}>
-+ Add Cost
-</button>
-
-{costs.map(c=>(
-
-<div key={c.id} className="card">
-
-<input
-type="date"
-value={c.date}
-onChange={e=>{
-setCosts(
-costs.map(x=>
-x.id===c.id ?
-{...x,date:e.target.value}
-:x
-)
-);
-}}
-/>
-
-<select
-value={c.type}
-onChange={e=>{
-setCosts(
-costs.map(x=>
-x.id===c.id ?
-{...x,type:e.target.value}
-:x
-)
-);
 }}
 >
 
-{COST_TYPES.map(t=>(
-<option key={t}>{t}</option>
-))}
+Submit
 
-</select>
-
-<input
-placeholder="Amount"
-value={c.amount}
-onChange={e=>{
-setCosts(
-costs.map(x=>
-x.id===c.id ?
-{...x,amount:e.target.value}
-:x
-)
-);
-}}
-/>
-
-<textarea
-placeholder="Notes"
-value={c.notes}
-onChange={e=>{
-setCosts(
-costs.map(x=>
-x.id===c.id ?
-{...x,notes:e.target.value}
-:x
-)
-);
-}}
-/>
+</button>
 
 </div>
-
-))}
 
 </div>
 
 )}
-  
-{/* NAVIGATION */}
+
+{/* NAV */}
 
 <div style={{
 position:"fixed",
@@ -555,15 +393,26 @@ background:"white",
 borderTop:"1px solid #eee"
 }}>
 
-{["dashboard","vehicles","drivers","claims","costs"]
-.map(t=>(
+{[
+"dashboard",
+"vehicles",
+"drivers",
+"trips",
+"costs",
+"claims",
+"fleet",
+"export",
+"subscription",
+"feedback",
+...(isAdmin ? ["admin"] : [])
+].map(t=>(
 
 <button
 key={t}
 onClick={()=>setActiveTab(t)}
 style={{
 flex:1,
-padding:12,
+padding:8,
 border:"none",
 background:
 activeTab===t ?
