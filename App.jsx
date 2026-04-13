@@ -139,6 +139,27 @@ color:"white",
 padding:16
 }}>
 
+{installPrompt && (
+
+<button
+onClick={()=>installPrompt.prompt()}
+style={{
+marginTop:10,
+padding:"8px 14px",
+borderRadius:20,
+border:"none",
+background:"#ffcc00",
+fontWeight:700,
+cursor:"pointer"
+}}
+>
+
+📱 Install App
+
+</button>
+
+)}
+  
 <div style={{fontWeight:800,fontSize:18}}>
 Logbook Pro SA
 </div>
