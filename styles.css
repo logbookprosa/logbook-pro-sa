@@ -1,0 +1,21 @@
+body {
+margin:0;
+font-family: 'DM Sans', sans-serif;
+background:#f3f4f9;
+}
+
+button{
+font-family:inherit;
+}
+
+input,select,textarea{
+font-family:inherit;
+}
+
+.card{
+background:white;
+border-radius:14px;
+padding:14px;
+margin-bottom:12px;
+box-shadow:0 2px 8px rgba(0,0,0,0.05);
+}
