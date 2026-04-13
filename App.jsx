@@ -46,6 +46,14 @@ const [claims,setClaims]=useState(
 );
 
 const [activeTab,setActiveTab]=useState("dashboard");
+useEffect(()=>{
+
+window.addEventListener("beforeinstallprompt",(e)=>{
+e.preventDefault();
+setInstallPrompt(e);
+});
+
+},[]);
 
 useEffect(()=>{
 localStorage.setItem("vehicles",JSON.stringify(vehicles));
