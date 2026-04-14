@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 
-// ── App identity ──────────────────────────────────────────────────────────────
+// -- App identity --------------------------------------------------------------
 const APP_NAME    = "Logbook Pro SA";
 const APP_NAME_SHORT = "Logbook Pro";
 const APP_TAGLINE = "SA's #1 Vehicle Logbook";
@@ -19,7 +19,7 @@ const BRAND = {
   splashGrad: "linear-gradient(160deg,#0d1b35 0%,#1a6bc4 35%,#2ea8e0 65%,#e87722 100%)",
 };
 
-// ── Logo mark SVG (shield + car + pin + checkmark — matches artwork) ──────────
+// -- Logo mark SVG (shield + car + pin + checkmark - matches artwork) ----------
 function LogoMark({size=48}){
   return(
     <svg width={size} height={size} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -59,7 +59,7 @@ function WordMark({dark=false}){
 //        cost categories, SARS calculator, maintenance predictions, tyre tracker
 const PLAN_LIMITS = { free: { vehicles: 1, docs: 5 }, pro: { vehicles: 99, docs: 999 } };
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// -- Helpers -------------------------------------------------------------------
 const today  = () => new Date().toISOString().split("T")[0];
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const fmt    = n => Number(n||0).toFixed(2);
@@ -79,7 +79,7 @@ function taxYearRange(l){if(l==="all")return{start:"0000-01-01",end:"9999-12-31"
 function inRange(d,r){if(!d)return false;return d>=r.start&&d<=r.end;}
 function buildTaxYears(){const n=new Date();const c=n.getMonth()>=2?n.getFullYear()+1:n.getFullYear();const y=["all"];for(let i=c;i>=c-5;i--)y.push(String(i));return y;}
 
-// ── Constants ─────────────────────────────────────────────────────────────────
+// -- Constants -----------------------------------------------------------------
 const SARS_RATES=[
   {maxKm:8000,   fixed:26023, fuel:116.7,maint:42.7},
   {maxKm:16000,  fixed:46043, fuel:122.7,maint:46.1},
@@ -134,7 +134,7 @@ const DOC_CATS=[
   {id:"other",   label:"Other Documents",      icon:"📁"},
 ];
 
-// All tabs — free users see a subset
+// All tabs - free users see a subset
 const ALL_TABS=[
   {id:"dashboard",icon:"🏠",label:"Home",     free:true},
   {id:"vehicles", icon:"🚗",label:"Vehicles", free:true},
@@ -156,7 +156,7 @@ const PRO_ROW1   = ALL_TABS.slice(0,6);   // Home → Service
 const PRO_ROW2   = ALL_TABS.slice(6);     // Costs → Export
 
 const BLANK_VEHICLE=(colorIdx=0)=>({
-  id:uid(),make:"",model:"",year:"",vehicleType:"Car",reg:"",engineNo:"",
+  id:uid(),make:"",model:"",year:"",vehicleType:"Car",reg:"",vinNo:"",
   licenceExpiry:"",rwcExpiry:"",currentOdometer:"",
   color:VEHICLE_COLORS[colorIdx%VEHICLE_COLORS.length],
   driver:{licenceNo:"",licenceCode:"Code EB",licenceExpiry:"",pdpType:"None",pdpNo:"",pdpExpiry:""},
@@ -166,7 +166,7 @@ const BLANK_VEHICLE=(colorIdx=0)=>({
   driverInfo:{name:"",phone:"",department:"",employeeId:""},
 });
 
-// ── Maintenance Prediction ────────────────────────────────────────────────────
+// -- Maintenance Prediction ----------------------------------------------------
 function getMaintPredictions(services,trips,curOdom){
   if(!curOdom||trips.length<2)return[];
   const cutoff=new Date();cutoff.setDate(cutoff.getDate()-90);
@@ -186,7 +186,7 @@ function getMaintPredictions(services,trips,curOdom){
   return out.sort((a,b)=>a.kmLeft-b.kmLeft);
 }
 
-// ── CSV export ────────────────────────────────────────────────────────────────
+// -- CSV export ----------------------------------------------------------------
 function doCSV(trips,fills,services,costs,claims,vehicle,taxYear,sarsDed,claimable,totKm,totB){
   const q=v=>`"${String(v??"").replace(/"/g,'""')}"`;
   const range=taxYearRange(taxYear);
@@ -195,8 +195,9 @@ function doCSV(trips,fills,services,costs,claims,vehicle,taxYear,sarsDed,claimab
   const fS=services.filter(s=>inRange(s.date,range));
   const fC=costs.filter(c=>inRange(c.date,range));
   let c=`${APP_NAME} — SARS LOGBOOK\n${vehicle.make} ${vehicle.model} (${vehicle.reg}) — ${vehicle.vehicleType}\n\n`;
-  c+="VEHICLE\n"+["Type","Make","Model","Year","Reg","VIN No","Lic Expiry","RWC Expiry"].map(q).join(",")+"\n";
-  c+=[vehicle.vehicleType,vehicle.make,vehicle.model,vehicle.year,vehicle.reg,vehicle.engineNo,vehicle.licenceExpiry,vehicle.rwcExpiry].map(q).join(",")+"\n\n";
+  const needsRWC=["Truck","Trailer"].includes(vehicle.vehicleType);
+  c+="VEHICLE\n"+["Type","Make","Model","Year","Reg","VIN No","Lic Expiry",...(needsRWC?["RWC Expiry"]:[])] .map(q).join(",")+"\n";
+  c+=[vehicle.vehicleType,vehicle.make,vehicle.model,vehicle.year,vehicle.reg,vehicle.vinNo,vehicle.licenceExpiry,...(needsRWC?[vehicle.rwcExpiry]:[])].map(q).join(",")+"\n\n";
   c+="DRIVER LICENCE\n"+["Lic No","Code","Expiry","PDP Type","PDP No","PDP Expiry"].map(q).join(",")+"\n";
   c+=[vehicle.driver?.licenceNo,vehicle.driver?.licenceCode,vehicle.driver?.licenceExpiry,vehicle.driver?.pdpType,vehicle.driver?.pdpNo,vehicle.driver?.pdpExpiry].map(q).join(",")+"\n\n";
   c+="TRIP LOG\n"+["Date","Description","From","To","Odo Start","Odo End","Distance (km)","Type","Notes"].map(q).join(",")+"\n";
@@ -227,7 +228,7 @@ function doCSV(trips,fills,services,costs,claims,vehicle,taxYear,sarsDed,claimab
   const blob=new Blob([c],{type:"text/csv"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`LogbookProSA_${vehicle.reg||"logbook"}_${taxYear}.csv`;a.click();URL.revokeObjectURL(url);
 }
 
-// ── UI atoms ──────────────────────────────────────────────────────────────────
+// -- UI atoms ------------------------------------------------------------------
 function Card({children,style={}}){return <div style={{background:"#fff",borderRadius:16,padding:"18px 16px",boxShadow:"0 2px 12px rgba(0,0,0,0.07)",marginBottom:14,...style}}>{children}</div>;}
 function ST({children}){return <h2 style={{fontSize:11,fontWeight:700,color:"#9aa",letterSpacing:1.5,textTransform:"uppercase",margin:"20px 0 8px"}}>{children}</h2>;}
 function Badge({type}){return <span style={{fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:20,background:type==="Business"?"#d4f5e2":"#fce8d5",color:type==="Business"?"#1a7a48":"#b85c00"}}>{type}</span>;}
@@ -248,7 +249,7 @@ function PhotoPicker({value,onChange,label="📷 Photo / Scan (optional)"}){
 }
 function TyreWheel({tread,label,onClick}){const st=TYRE_STATUS(tread);return(<div onClick={onClick} style={{cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}><div style={{width:44,height:66,borderRadius:8,background:st.bg,border:`3px solid ${st.color}`,display:"flex",alignItems:"center",justifyContent:"center"}}><div style={{fontSize:12,fontWeight:800,color:st.color}}>{tread?tread+"mm":"?"}</div></div><div style={{fontSize:9,color:"#888",textAlign:"center",maxWidth:50}}>{label}</div><div style={{fontSize:9,fontWeight:700,color:st.color}}>{st.label}</div></div>);}
 
-// ── Pro Gate ──────────────────────────────────────────────────────────────────
+// -- Pro Gate ------------------------------------------------------------------
 function ProGate({feature,onUpgrade}){
   return(
     <div style={{textAlign:"center",padding:"40px 20px"}}>
@@ -263,7 +264,7 @@ function ProGate({feature,onUpgrade}){
   );
 }
 
-// ── Onboarding ────────────────────────────────────────────────────────────────
+// -- Onboarding ----------------------------------------------------------------
 function Onboarding({onComplete}){
   const [step,setStep]=useState(0);
   const [form,setForm]=useState({make:"",model:"",year:"",reg:"",vehicleType:"Car"});
@@ -340,7 +341,7 @@ function Onboarding({onComplete}){
   );
 }
 
-// ── Upgrade Modal ─────────────────────────────────────────────────────────────
+// -- Upgrade Modal -------------------------------------------------------------
 function UpgradeModal({onClose,onUpgrade}){
   const features=[
     ["🚗","Multiple Vehicles","Manage your full fleet"],
@@ -387,9 +388,9 @@ function UpgradeModal({onClose,onUpgrade}){
   );
 }
 
-// ── Main App ──────────────────────────────────────────────────────────────────
+// -- Main App ------------------------------------------------------------------
 export default function App(){
-  // ── App meta state ──────────────────────────────────────────────────────
+  // -- App meta state ------------------------------------------------------
   const [onboarded,setOnboarded]=useState(()=>load("lb_onboarded",false));
   const [plan,setPlan]=useState(()=>load("lb_plan","free")); // "free" | "pro"
   const [showUpgrade,setShowUpgrade]=useState(false);
@@ -401,7 +402,7 @@ export default function App(){
   const [vehicles,setVehicles]=useState(()=>{
     const v=load("lb_vehicles",null);if(v)return v;
     const old=load("lb_vehicle",null);
-    if(old){const bv=BLANK_VEHICLE();return[{...bv,...old,driver:{...bv.driver,...load("lb_driver",{}),licenceCode:load("lb_driver",{}).licenceType||"Code EB",pdpType:"None",pdpNo:"",pdpExpiry:""},insurance:load("lb_ins",bv.insurance),tyres:bv.tyres,reminders:[],docs:[],vehicleType:"Car",rwcExpiry:""}];}
+    if(old){const bv=BLANK_VEHICLE();return[{...bv,...old,vinNo:old.vinNo||old.engineNo||"",driver:{...bv.driver,...load("lb_driver",{}),licenceCode:load("lb_driver",{}).licenceType||"Code EB",pdpType:"None",pdpNo:"",pdpExpiry:""},insurance:load("lb_ins",bv.insurance),tyres:bv.tyres,reminders:[],docs:[],vehicleType:"Car",rwcExpiry:""}];}
     return[BLANK_VEHICLE()];
   });
   const [activeVid,setActiveVid]=useState(()=>{const v=load("lb_vehicles",null);return v?v[0]?.id:"";});
@@ -438,7 +439,7 @@ export default function App(){
   const [docForm,setDocForm]=useState({label:"",data:"",date:today()});
   const [showSOS,setShowSOS]=useState(false);
 
-  // ── Persist ─────────────────────────────────────────────────────────────
+  // -- Persist -------------------------------------------------------------
   useEffect(()=>{save("lb_vehicles",vehicles);},[vehicles]);
   useEffect(()=>{save("lb_trips",trips);},[trips]);
   useEffect(()=>{save("lb_fills",fills);},[fills]);
@@ -463,7 +464,7 @@ export default function App(){
     ?vTrips.filter(t=>[t.description,t.from,t.to,t.notes].join(" ").toLowerCase().includes(tripSearch.toLowerCase()))
     :vTrips;
 
-  // ── Computed ─────────────────────────────────────────────────────────────
+  // -- Computed -------------------------------------------------------------
   const totP=vTrips.reduce((s,t)=>t.type==="Private"?s+(Number(t.odomEnd||0)-Number(t.odomStart||0)):s,0);
   const totB=vTrips.reduce((s,t)=>t.type==="Business"?s+(Number(t.odomEnd||0)-Number(t.odomStart||0)):s,0);
   const totKm=totP+totB;
@@ -514,7 +515,7 @@ export default function App(){
   // Alerts
   const alerts=[];
   if(vLic&&daysUntil(vehicle.licenceExpiry)<=60)         alerts.push({...vLic,label:"Vehicle Licence"});
-  if(rwcExp&&vehicle.vehicleType==="Truck"&&daysUntil(vehicle.rwcExpiry)<=60) alerts.push({...rwcExp,label:"Roadworthy (RWC)"});
+  if(rwcExp&&["Truck","Trailer"].includes(vehicle.vehicleType)&&daysUntil(vehicle.rwcExpiry)<=60) alerts.push({...rwcExp,label:"Roadworthy (RWC)"});
   if(dLic&&daysUntil(vehicle.driver?.licenceExpiry)<=60)  alerts.push({...dLic,label:`Driver's Licence (${vehicle.driver?.licenceCode||""})`});
   if(pdpExp&&vehicle.driver?.pdpType!=="None"&&daysUntil(vehicle.driver?.pdpExpiry)<=60)alerts.push({...pdpExp,label:`PDP (${vehicle.driver?.pdpType})`});
   if(insR&&daysUntil(vehicle.insurance?.renewalDate)<=60) alerts.push({...insR,label:"Insurance Renewal"});
@@ -522,7 +523,7 @@ export default function App(){
   (vehicle.tyres||[]).forEach(t=>{const st=TYRE_STATUS(t.tread);if(t.tread&&Number(t.tread)<=4)alerts.push({icon:st.label==="Replace!"?"🚨":"⚠️",color:st.color,bg:st.bg,label:`${t.pos} tyre: ${st.label} (${t.tread}mm)`});});
   (vehicle.reminders||[]).filter(r=>!r.done).forEach(r=>{const d=daysUntil(r.dueDate);if(d!=null&&d<=7)alerts.push({icon:"🔔",color:d<0?"#cc2222":"#1a52cc",bg:d<0?"#fff0f0":"#eef6ff",label:`Reminder: ${r.title}${d<0?` (${Math.abs(d)}d overdue)`:`in ${d}d`}`});});
 
-  // ── CRUD ────────────────────────────────────────────────────────────────
+  // -- CRUD ----------------------------------------------------------------
   useEffect(()=>{
     const lastTrip=[...trips].filter(t=>t.vehicleId===vehicle.id).sort((a,b)=>new Date(b.date)-new Date(a.date))[0];
     if(lastTrip&&!editTripId){setTripForm(f=>({...f,odomStart:lastTrip.odomEnd||""}));}
@@ -549,7 +550,7 @@ export default function App(){
   const doBackup=()=>{const d={version:6,app:APP_NAME,exported:new Date().toISOString(),plan,vehicles,trips,fills,services,costs,claims};const blob=new Blob([JSON.stringify(d,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`LogbookProSA_backup_${today()}.json`;a.click();URL.revokeObjectURL(url);setBackupMsg("✅ Backup downloaded!");setTimeout(()=>setBackupMsg(""),3000);};
   const doRestore=e=>{const file=e.target.files[0];if(!file)return;const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);if(d.vehicles)setVehicles(d.vehicles);if(d.trips)setTrips(d.trips);if(d.fills)setFills(d.fills);if(d.services)setServices(d.services);if(d.costs)setCosts(d.costs);if(d.claims)setClaims(d.claims);if(d.plan)setPlan(d.plan);setActiveVid(d.vehicles?.[0]?.id||"");setBackupMsg("✅ Restore complete!");}catch{setBackupMsg("❌ Invalid backup file.");}setTimeout(()=>setBackupMsg(""),4000);};r.readAsText(file);e.target.value="";};
 
-  // ── UI helpers ───────────────────────────────────────────────────────────
+  // -- UI helpers -----------------------------------------------------------
   const BtnP=({g,children,onClick,style={}})=><button onClick={onClick} style={{width:"100%",marginTop:12,padding:"12px",borderRadius:12,border:"none",background:g,color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer",fontFamily:"inherit",...style}}>{children}</button>;
   const BtnC=({onClick})=><button onClick={onClick} style={{width:"100%",marginTop:6,padding:"10px",borderRadius:12,border:"1.5px solid #e5e7ef",background:"#fff",color:"#888",fontWeight:600,fontSize:14,cursor:"pointer",fontFamily:"inherit"}}>Cancel</button>;
   const Eb=({color,bg,onClick})=><button onClick={onClick} style={{background:bg,border:"none",borderRadius:8,padding:"6px 10px",cursor:"pointer",color,fontWeight:600,fontSize:12,fontFamily:"inherit"}}>Edit</button>;
@@ -559,11 +560,11 @@ export default function App(){
   const TaxBar=()=>(<div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:4,margin:"10px 0 0"}}>{TAX_YEARS.map(y=>(<button key={y} onClick={()=>setTaxYear(y)} style={{flexShrink:0,padding:"5px 12px",borderRadius:20,border:"none",background:taxYear===y?BRAND.blue:"#e8eaf0",color:taxYear===y?"#fff":"#555",fontWeight:600,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>{y==="all"?"All Time":`${Number(y)-1}/${y}`}</button>))}</div>);
   const VPill=()=>(<div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:4,margin:"0 0 4px"}}>{vehicles.map(v=>(<button key={v.id} onClick={()=>setActiveVid(v.id)} style={{flexShrink:0,padding:"5px 12px",borderRadius:20,border:`2px solid ${activeVid===v.id?"#fff":"rgba(255,255,255,0.3)"}`,background:activeVid===v.id?"#fff":"transparent",color:activeVid===v.id?BRAND.navy:"#fff",fontWeight:700,fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>{VEHICLE_ICONS[v.vehicleType]||"🚗"} {v.make&&v.model?`${v.make} ${v.model}`:v.reg||"Vehicle"}</button>))}{isPro&&<button onClick={()=>{const nv=BLANK_VEHICLE(vehicles.length);setVehicles(vs=>[...vs,nv]);setActiveVid(nv.id);setTab("vehicles");setVEdit(true);setVDraft({...nv});}} style={{flexShrink:0,padding:"5px 10px",borderRadius:20,border:"1.5px solid rgba(255,255,255,0.5)",background:"transparent",color:"rgba(255,255,255,0.8)",fontWeight:600,fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>+ Add</button>}</div>);
 
-  // Fix 3: data persistence notice — shown once, dismissed permanently
+  // Fix 3: data persistence notice - shown once, dismissed permanently
   const [dataBannerDismissed,setDataBannerDismissed]=useState(()=>load("lb_data_banner_ok",false));
   const dismissDataBanner=()=>{setDataBannerDismissed(true);save("lb_data_banner_ok",true);};
 
-  // ── Onboarding ───────────────────────────────────────────────────────────
+  // -- Onboarding -----------------------------------------------------------
   if(!onboarded){
     return <Onboarding onComplete={vForm=>{
       if(vForm?.make||vForm?.reg){
@@ -575,7 +576,7 @@ export default function App(){
     }}/>;
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // -------------------------------------------------------------------------
   return(
     <div style={{fontFamily:"'DM Sans','Segoe UI',sans-serif",background:"#f3f4f9",minHeight:"100vh",maxWidth:480,margin:"0 auto",paddingBottom:isPro?100:72}}>
 
@@ -624,7 +625,7 @@ export default function App(){
 
       <div style={{padding:"0 16px"}}>
 
-        {/* ════ DASHBOARD ════ */}
+        {/* ---- DASHBOARD ---- */}
         {tab==="dashboard"&&(
           <div>
             <TaxBar/>
@@ -679,7 +680,7 @@ export default function App(){
             {isPro&&maintPreds.length>0&&(<><ST>🔮 Maintenance Predictions</ST>{maintPreds.slice(0,3).map((p,i)=>(<div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 14px",background:"#fff",borderRadius:12,marginBottom:8,boxShadow:"0 1px 4px rgba(0,0,0,0.06)",borderLeft:`4px solid ${p.overdue?"#cc2222":p.urgent?"#e88c00":"#2c5fff"}`}}><div><div style={{fontWeight:700,fontSize:13,color:p.overdue?"#cc2222":"#1e2235"}}>{p.overdue?"🚨":"🔧"} {p.label}</div><div style={{fontSize:12,color:"#888",marginTop:2}}>{p.overdue?`Overdue by ${Math.abs(p.kmLeft).toFixed(0)} km`:`${p.kmLeft.toFixed(0)} km remaining`}{p.daysLeft!=null&&!p.overdue&&<span style={{color:p.daysLeft<=14?"#b85c00":"#888"}}> · ~{p.daysLeft} days</span>}</div></div><div style={{fontSize:12,fontWeight:700,color:p.overdue?"#cc2222":p.urgent?"#e88c00":"#2c5fff",background:p.overdue?"#fff0f0":p.urgent?"#fff8ee":"#eef6ff",padding:"4px 10px",borderRadius:20,whiteSpace:"nowrap"}}>{p.daysLeft!=null?(p.overdue?"Overdue":`${p.daysLeft}d`):`${p.kmLeft.toFixed(0)} km`}</div></div>))}</>)}
 
             <ST>Quick Status</ST>
-            {[{label:"Vehicle Licence",ex:vehicle.licenceExpiry},...(vehicle.vehicleType==="Truck"?[{label:"Roadworthy (RWC)",ex:vehicle.rwcExpiry}]:[]),{label:`Driver's Lic (${vehicle.driver?.licenceCode||"EB"})`,ex:vehicle.driver?.licenceExpiry},{label:`PDP (${vehicle.driver?.pdpType||"None"})`,ex:vehicle.driver?.pdpType!=="None"?vehicle.driver?.pdpExpiry:null},{label:"Insurance Renewal",ex:vehicle.insurance?.renewalDate}].map(({label,ex})=>{const st=expiryBadge(ex);return(<div key={label} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 14px",background:"#fff",borderRadius:12,marginBottom:8,boxShadow:"0 1px 4px rgba(0,0,0,0.06)"}}><span style={{fontSize:12,fontWeight:600,color:"#333"}}>{label}</span>{st?<span style={{fontSize:11,fontWeight:700,color:st.color,background:st.bg,padding:"3px 9px",borderRadius:20}}>{st.icon} {st.label}</span>:<span style={{fontSize:12,color:"#bbb"}}>Not set</span>}</div>);})}
+            {[{label:"Vehicle Licence",ex:vehicle.licenceExpiry},...(["Truck","Trailer"].includes(vehicle.vehicleType)?[{label:"Roadworthy (RWC)",ex:vehicle.rwcExpiry}]:[]),{label:`Driver's Lic (${vehicle.driver?.licenceCode||"EB"})`,ex:vehicle.driver?.licenceExpiry},{label:`PDP (${vehicle.driver?.pdpType||"None"})`,ex:vehicle.driver?.pdpType!=="None"?vehicle.driver?.pdpExpiry:null},{label:"Insurance Renewal",ex:vehicle.insurance?.renewalDate}].map(({label,ex})=>{const st=expiryBadge(ex);return(<div key={label} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 14px",background:"#fff",borderRadius:12,marginBottom:8,boxShadow:"0 1px 4px rgba(0,0,0,0.06)"}}><span style={{fontSize:12,fontWeight:600,color:"#333"}}>{label}</span>{st?<span style={{fontSize:11,fontWeight:700,color:st.color,background:st.bg,padding:"3px 9px",borderRadius:20}}>{st.icon} {st.label}</span>:<span style={{fontSize:12,color:"#bbb"}}>Not set</span>}</div>);})} 
 
             <ST>Monthly Breakdown</ST>
             {allMonthKeys.length===0&&<div style={{color:"#bbb",fontSize:13,textAlign:"center",marginTop:24}}>No data yet — tap Vehicles to set up your car.</div>}
@@ -724,7 +725,7 @@ export default function App(){
           </div>
         )}
 
-        {/* ════ VEHICLES ════ */}
+        {/* ---- VEHICLES ---- */}
         {tab==="vehicles"&&(
           <div>
             {vehicles.length>1&&<><ST>Your Vehicles</ST>{vehicles.map(v=>(<div key={v.id} onClick={()=>setActiveVid(v.id)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",background:activeVid===v.id?"#eef2ff":"#fff",borderRadius:12,marginBottom:8,boxShadow:"0 1px 4px rgba(0,0,0,0.06)",border:`2px solid ${activeVid===v.id?v.color||"#2c5fff":"transparent"}`,cursor:"pointer"}}><div style={{display:"flex",alignItems:"center",gap:10}}><div style={{width:12,height:12,borderRadius:"50%",background:v.color||"#2c5fff"}}/><div><div style={{fontWeight:700,fontSize:14}}>{v.make&&v.model?`${v.make} ${v.model}`:"Unnamed"} <span style={{fontSize:12,color:"#888"}}>{v.vehicleType||""}</span></div><div style={{fontSize:12,color:"#888"}}>{v.reg||"No reg"}{v.year?` · ${v.year}`:""}</div></div></div><div style={{display:"flex",gap:6,alignItems:"center"}}>{activeVid===v.id&&<span style={{fontSize:11,fontWeight:700,color:v.color||"#2c5fff",background:"#eef2ff",padding:"2px 8px",borderRadius:20}}>Active</span>}{vehicles.length>1&&<button onClick={e=>{e.stopPropagation();if(window.confirm("Delete vehicle and all data?")){setVehicles(vs=>vs.filter(x=>x.id!==v.id));setTrips(ts=>ts.filter(t=>t.vehicleId!==v.id));setFills(fs=>fs.filter(f=>f.vehicleId!==v.id));setServices(ss=>ss.filter(s=>s.vehicleId!==v.id));setCosts(cs=>cs.filter(c=>c.vehicleId!==v.id));setClaims(cs=>cs.filter(c=>c.vehicleId!==v.id));setActiveVid(vehicles.find(x=>x.id!==v.id)?.id||"");}}} style={{background:"#fff0f0",border:"none",borderRadius:8,padding:"5px 9px",cursor:"pointer",color:"#cc2222",fontSize:12,fontFamily:"inherit"}}>Del</button>}</div></div>))}{isPro&&<button onClick={()=>{const nv=BLANK_VEHICLE(vehicles.length);setVehicles(vs=>[...vs,nv]);setActiveVid(nv.id);setVEdit(true);setVDraft({...nv});}} style={{width:"100%",padding:"11px",borderRadius:12,border:"1.5px dashed #aab",background:"transparent",color:"#555",fontWeight:600,fontSize:14,cursor:"pointer",fontFamily:"inherit",marginBottom:8}}>+ Add Another Vehicle</button>}</>}
@@ -732,9 +733,9 @@ export default function App(){
             <Card>
               {!vEdit?(<div>
                 <InfoRow label="Type" value={vehicle.vehicleType}/>
-                {[["Make",vehicle.make],["Model",vehicle.model],["Year",vehicle.year],["Registration",vehicle.reg],["VIN No",vehicle.engineNo],["Odometer",vehicle.currentOdometer?Number(vehicle.currentOdometer).toLocaleString()+" km":""]].map(([l,v])=><InfoRow key={l} label={l} value={v}/>)}
+                {[["Make",vehicle.make],["Model",vehicle.model],["Year",vehicle.year],["Registration",vehicle.reg],["VIN No",vehicle.vinNo],["Odometer",vehicle.currentOdometer?Number(vehicle.currentOdometer).toLocaleString()+" km":""]].map(([l,v])=><InfoRow key={l} label={l} value={v}/>)}
                 <InfoRow label="Vehicle Licence" value={vehicle.licenceExpiry}><ExpiryChip dateStr={vehicle.licenceExpiry}/></InfoRow>
-                {vehicle.vehicleType==="Truck"&&<InfoRow label="Roadworthy (RWC)" value={vehicle.rwcExpiry}><ExpiryChip dateStr={vehicle.rwcExpiry}/></InfoRow>}
+                {["Truck","Trailer"].includes(vehicle.vehicleType)&&<InfoRow label="Roadworthy (RWC)" value={vehicle.rwcExpiry}><ExpiryChip dateStr={vehicle.rwcExpiry}/></InfoRow>}
                 <div style={{marginTop:10,padding:"10px 12px",background:"#eef2ff",borderRadius:10}}>
                   <div style={{fontWeight:700,fontSize:12,color:"#1a2a6c",marginBottom:6}}>🪪 Driver's Licence</div>
                   <InfoRow label="Licence No"   value={vehicle.driver?.licenceNo}/>
@@ -760,10 +761,11 @@ export default function App(){
                   <div><label style={LBL}>Model</label><input style={INP} placeholder="Hilux" value={vDraft.model||""} onChange={e=>setVDraft({...vDraft,model:e.target.value})}/></div>
                   <div><label style={LBL}>Year</label><input style={INP} placeholder="2019" value={vDraft.year||""} onChange={e=>setVDraft({...vDraft,year:e.target.value})}/></div>
                   <div><label style={LBL}>Registration</label><input style={INP} placeholder="GP 123-456" value={vDraft.reg||""} onChange={e=>setVDraft({...vDraft,reg:e.target.value})}/></div>
-                  <div style={S2}><label style={LBL}>VIN No</label><input style={INP} value={vDraft.engineNo||""} onChange={e=>setVDraft({...vDraft,engineNo:e.target.value})}/></div>
+                  <div style={S2}><label style={LBL}>VIN No</label><input style={INP} placeholder="e.g. AAVZZZ1TZWP000001" value={vDraft.vinNo||""} onChange={e=>setVDraft({...vDraft,vinNo:e.target.value})}/></div>
                   <div style={S2}><label style={LBL}>Current Odometer (km)</label><input type="number" style={INP} value={vDraft.currentOdometer||""} onChange={e=>setVDraft({...vDraft,currentOdometer:e.target.value})}/></div>
-                  <div><label style={LBL}>Vehicle Licence Expiry</label><input type="date" style={INP} value={vDraft.licenceExpiry||""} onChange={e=>setVDraft({...vDraft,licenceExpiry:e.target.value})}/></div>
-                  {vDraft.vehicleType==="Truck"&&<div><label style={LBL}>Roadworthy (RWC) Expiry</label><input type="date" style={INP} value={vDraft.rwcExpiry||""} onChange={e=>setVDraft({...vDraft,rwcExpiry:e.target.value})}/></div>}
+                  <div style={["Truck","Trailer"].includes(vDraft.vehicleType)?S2:{gridColumn:"span 2"}}><label style={LBL}>Vehicle Licence Expiry</label><input type="date" style={INP} value={vDraft.licenceExpiry||""} onChange={e=>setVDraft({...vDraft,licenceExpiry:e.target.value})}/></div>
+                  {["Truck","Trailer"].includes(vDraft.vehicleType)&&<div><label style={LBL}>Roadworthy (RWC) Expiry</label><input type="date" style={INP} value={vDraft.rwcExpiry||""} onChange={e=>setVDraft({...vDraft,rwcExpiry:e.target.value})}/></div>}
+                  {["Truck","Trailer"].includes(vDraft.vehicleType)&&vDraft.rwcExpiry&&(()=>{const st=expiryBadge(vDraft.rwcExpiry);return st?<div style={{...S2,padding:"7px 12px",borderRadius:8,background:st.bg,fontSize:12,fontWeight:700,color:st.color}}>{st.icon} Roadworthy {st.label}</div>:null;})()} 
                   <div style={S2}><label style={LBL}>Vehicle Colour</label><div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:4}}>{VEHICLE_COLORS.map(c=><button key={c} onClick={()=>setVDraft({...vDraft,color:c})} style={{width:28,height:28,borderRadius:"50%",background:c,border:vDraft.color===c?"3px solid #1e2235":"2px solid transparent",cursor:"pointer"}}/> )}</div></div>
                 </div>
                 <div style={{fontWeight:700,fontSize:13,color:"#1a2a6c",margin:"14px 0 8px",padding:"8px 10px",background:"#eef2ff",borderRadius:8}}>🪪 Driver's Licence</div>
@@ -817,21 +819,21 @@ export default function App(){
               {vehicle.insurance?.emergencyPhone&&<a href={`tel:${vehicle.insurance.emergencyPhone}`} style={{display:"block",padding:"12px",borderRadius:14,background:"linear-gradient(135deg,#cc0000,#ff4444)",color:"#fff",fontWeight:800,fontSize:15,textAlign:"center",textDecoration:"none",marginBottom:14}}>📞 Call Insurer: {vehicle.insurance.emergencyPhone}</a>}
             </>}
             <ST>🔔 Reminders</ST>
-            <Card><div style={G2}><div style={S2}><label style={LBL}>Title</label><input style={INP} placeholder="e.g. Renew vehicle licence" value={reminderForm.title} onChange={e=>setReminderForm({...reminderForm,title:e.target.value})}/></div><div style={S2}><label style={LBL}>Due Date</label><input type="date" style={INP} value={reminderForm.dueDate} onChange={e=>setReminderForm({...reminderForm,dueDate:e.target.value})}/></div><div style={S2}><label style={LBL}>Note</label><input style={INP} placeholder="Extra detail..." value={reminderForm.note} onChange={e=>setReminderForm({...reminderForm,note:e.target.value})}/></div></div><BtnP g="linear-gradient(135deg,#1a52cc,#2c5fff)" onClick={saveReminder}>+ Add Reminder</BtnP></Card>
+            <Card><div style={G2}><div style={S2}><label style={LBL}>Title</label><input style={INP} placeholder="e.g. Renew vehicle licence" value={reminderForm.title} onChange={e=>setReminderForm({...reminderForm,title:e.target.value})}/></div><div style={S2}><label style={LBL}>Due Date</label><input type="date" style={INP} value={reminderForm.dueDate} onChange={e=>setReminderForm({...reminderForm,dueDate:e.target.value})}/></div><div style={S2}><label style={LBL}>Note</label><input style={INP} placeholder="Extra detail…" value={reminderForm.note} onChange={e=>setReminderForm({...reminderForm,note:e.target.value})}/></div></div><BtnP g="linear-gradient(135deg,#1a52cc,#2c5fff)" onClick={saveReminder}>+ Add Reminder</BtnP></Card>
             {(vehicle.reminders||[]).map(r=>{const d=daysUntil(r.dueDate);const ov=d!=null&&d<0;return(<Card key={r.id} style={{opacity:r.done?0.5:1,borderLeft:`4px solid ${r.done?"#ccc":ov?"#cc2222":"#2c5fff"}`}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}><div style={{flex:1}}><div style={{fontWeight:700,fontSize:14,textDecoration:r.done?"line-through":"none"}}>{r.title}</div>{r.dueDate&&<div style={{fontSize:12,color:ov&&!r.done?"#cc2222":"#888"}}>{r.dueDate}{d!=null&&!r.done?(ov?` (${Math.abs(d)}d overdue)`:`  (${d}d left)`):""}</div>}{r.note&&<div style={{fontSize:12,color:"#888"}}>{r.note}</div>}</div><div style={{display:"flex",gap:6}}><button onClick={()=>setVehicle({...vehicle,reminders:(vehicle.reminders||[]).map(x=>x.id===r.id?{...x,done:!x.done}:x)})} style={{background:r.done?"#f0faf4":"#eef2ff",border:"none",borderRadius:8,padding:"6px 10px",cursor:"pointer",color:r.done?"#1a7a48":"#2c5fff",fontWeight:600,fontSize:12,fontFamily:"inherit"}}>{r.done?"↩":"✓"}</button><Db onClick={()=>setVehicle({...vehicle,reminders:(vehicle.reminders||[]).filter(x=>x.id!==r.id)})}/></div></div></Card>);})}
           </div>
         )}
 
-        {/* ════ TRIPS ════ */}
+        {/* ---- TRIPS ---- */}
         {tab==="trips"&&(
           <div>
             <ST>{editTripId?"Edit Trip":"Log a Trip"}</ST>
-            <Card><div style={G2}><div style={S2}><label style={LBL}>Date</label><input type="date" style={INP} value={tripForm.date} onChange={e=>setTripForm({...tripForm,date:e.target.value})}/></div><div style={S2}><label style={LBL}>Purpose</label><input style={INP} placeholder="e.g. Client meeting, site visit" value={tripForm.description} onChange={e=>setTripForm({...tripForm,description:e.target.value})}/></div><div><label style={LBL}>From</label><input style={INP} placeholder="Departure" value={tripForm.from} onChange={e=>setTripForm({...tripForm,from:e.target.value})}/></div><div><label style={LBL}>To</label><input style={INP} placeholder="Destination" value={tripForm.to} onChange={e=>setTripForm({...tripForm,to:e.target.value})}/></div><div><label style={LBL}>Odo Start (km)</label><input type="number" style={INP} placeholder="87000" value={tripForm.odomStart} onChange={e=>setTripForm({...tripForm,odomStart:e.target.value})}/></div><div><label style={LBL}>Odo End (km)</label><input type="number" style={INP} placeholder="87120" value={tripForm.odomEnd} onChange={e=>setTripForm({...tripForm,odomEnd:e.target.value})}/></div><div style={S2}><label style={LBL}>Type</label><div style={{display:"flex",gap:10}}>{["Business","Private"].map(t=>(<button key={t} onClick={()=>setTripForm({...tripForm,type:t})} style={{flex:1,padding:"9px 0",borderRadius:10,border:"2px solid",borderColor:tripForm.type===t?(t==="Business"?"#2c5fff":"#b85c00"):"#e5e7ef",background:tripForm.type===t?(t==="Business"?"#eef2ff":"#fff5ee"):"#fff",color:tripForm.type===t?(t==="Business"?"#2c5fff":"#b85c00"):"#888",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>{t}</button>))}</div></div><div style={S2}><label style={LBL}>Notes</label><input style={INP} placeholder="Optional trip notes..." value={tripForm.notes||""} onChange={e=>setTripForm({...tripForm,notes:e.target.value})}/></div><div style={S2}><PhotoPicker value={tripForm.receipt} onChange={v=>setTripForm({...tripForm,receipt:v})}/></div></div>{tripForm.odomStart&&tripForm.odomEnd&&<div style={{marginTop:10,padding:"8px 12px",background:"#f0f4ff",borderRadius:8,fontSize:13,color:"#2c5fff",fontWeight:600}}>Distance: {fmtKm(Number(tripForm.odomEnd)-Number(tripForm.odomStart))} km</div>}<BtnP g="linear-gradient(135deg,#1a2a6c,#2c5fff)" onClick={saveTrip}>{editTripId?"Update":"Save Trip"}</BtnP>{editTripId&&<BtnC onClick={()=>{setEditTripId(null);setTripForm({date:today(),description:"",from:"",to:"",odomStart:"",odomEnd:"",type:"Business",notes:"",receipt:""});}}/>}</Card>
+            <Card><div style={G2}><div style={S2}><label style={LBL}>Date</label><input type="date" style={INP} value={tripForm.date} onChange={e=>setTripForm({...tripForm,date:e.target.value})}/></div><div style={S2}><label style={LBL}>Purpose</label><input style={INP} placeholder="e.g. Client meeting, site visit" value={tripForm.description} onChange={e=>setTripForm({...tripForm,description:e.target.value})}/></div><div><label style={LBL}>From</label><input style={INP} placeholder="Departure" value={tripForm.from} onChange={e=>setTripForm({...tripForm,from:e.target.value})}/></div><div><label style={LBL}>To</label><input style={INP} placeholder="Destination" value={tripForm.to} onChange={e=>setTripForm({...tripForm,to:e.target.value})}/></div><div><label style={LBL}>Odo Start (km)</label><input type="number" style={INP} placeholder="87000" value={tripForm.odomStart} onChange={e=>setTripForm({...tripForm,odomStart:e.target.value})}/></div><div><label style={LBL}>Odo End (km)</label><input type="number" style={INP} placeholder="87120" value={tripForm.odomEnd} onChange={e=>setTripForm({...tripForm,odomEnd:e.target.value})}/></div><div style={S2}><label style={LBL}>Type</label><div style={{display:"flex",gap:10}}>{["Business","Private"].map(t=>(<button key={t} onClick={()=>setTripForm({...tripForm,type:t})} style={{flex:1,padding:"9px 0",borderRadius:10,border:"2px solid",borderColor:tripForm.type===t?(t==="Business"?"#2c5fff":"#b85c00"):"#e5e7ef",background:tripForm.type===t?(t==="Business"?"#eef2ff":"#fff5ee"):"#fff",color:tripForm.type===t?(t==="Business"?"#2c5fff":"#b85c00"):"#888",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>{t}</button>))}</div></div><div style={S2}><label style={LBL}>Notes</label><input style={INP} placeholder="Optional trip notes…" value={tripForm.notes||""} onChange={e=>setTripForm({...tripForm,notes:e.target.value})}/></div><div style={S2}><PhotoPicker value={tripForm.receipt} onChange={v=>setTripForm({...tripForm,receipt:v})}/></div></div>{tripForm.odomStart&&tripForm.odomEnd&&<div style={{marginTop:10,padding:"8px 12px",background:"#f0f4ff",borderRadius:8,fontSize:13,color:"#2c5fff",fontWeight:600}}>Distance: {fmtKm(Number(tripForm.odomEnd)-Number(tripForm.odomStart))} km</div>}<BtnP g="linear-gradient(135deg,#1a2a6c,#2c5fff)" onClick={saveTrip}>{editTripId?"Update":"Save Trip"}</BtnP>{editTripId&&<BtnC onClick={()=>{setEditTripId(null);setTripForm({date:today(),description:"",from:"",to:"",odomStart:"",odomEnd:"",type:"Business",notes:"",receipt:""});}}/>}</Card>
             <div style={{display:"flex",gap:8,alignItems:"center",margin:"16px 0 8px"}}>
               <div style={{fontWeight:700,fontSize:11,color:"#9aa",letterSpacing:1.5,textTransform:"uppercase",flex:1}}>Trips ({filteredTrips.length}{tripSearch?` of ${vTrips.length}`:""}) </div>
             </div>
             <div style={{position:"relative",marginBottom:10}}>
-              <input style={{...INP,paddingLeft:34}} placeholder="Search trips..." value={tripSearch} onChange={e=>setTripSearch(e.target.value)}/>
+              <input style={{...INP,paddingLeft:34}} placeholder="Search trips…" value={tripSearch} onChange={e=>setTripSearch(e.target.value)}/>
               <span style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",fontSize:14,color:"#aaa"}}>🔍</span>
               {tripSearch&&<button onClick={()=>setTripSearch("")} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",fontSize:16,color:"#aaa",cursor:"pointer"}}>✕</button>}
             </div>
@@ -840,11 +842,11 @@ export default function App(){
           </div>
         )}
 
-        {/* ════ FUEL ════ */}
+        {/* ---- FUEL ---- */}
         {tab==="fuel"&&(
           <div>
             <ST>{editFillId?"Edit Fill-Up":"Log a Fill-Up"}</ST>
-            <Card><div style={G2}><div style={S2}><label style={LBL}>Date</label><input type="date" style={INP} value={fillForm.date} onChange={e=>setFillForm({...fillForm,date:e.target.value})}/></div><div><label style={LBL}>Litres</label><input type="number" step="0.01" style={INP} placeholder="45.2" value={fillForm.litres} onChange={e=>setFillForm({...fillForm,litres:e.target.value})}/></div><div><label style={LBL}>Price / Litre (R)</label><input type="number" step="0.001" style={INP} placeholder="22.50" value={fillForm.pricePerLitre} onChange={e=>setFillForm({...fillForm,pricePerLitre:e.target.value})}/></div><div style={S2}><label style={LBL}>Station Name</label><input style={INP} placeholder="e.g. Shell Vereeniging" value={fillForm.station||""} onChange={e=>setFillForm({...fillForm,station:e.target.value})}/></div><div style={S2}><label style={LBL}>Odometer (km)</label><input type="number" style={INP} placeholder="87500" value={fillForm.odometer} onChange={e=>setFillForm({...fillForm,odometer:e.target.value})}/></div><div style={S2}><label style={LBL}>Notes</label><input style={INP} placeholder="Optional notes..." value={fillForm.notes} onChange={e=>setFillForm({...fillForm,notes:e.target.value})}/></div></div>
+            <Card><div style={G2}><div style={S2}><label style={LBL}>Date</label><input type="date" style={INP} value={fillForm.date} onChange={e=>setFillForm({...fillForm,date:e.target.value})}/></div><div><label style={LBL}>Litres</label><input type="number" step="0.01" style={INP} placeholder="45.2" value={fillForm.litres} onChange={e=>setFillForm({...fillForm,litres:e.target.value})}/></div><div><label style={LBL}>Price / Litre (R)</label><input type="number" step="0.001" style={INP} placeholder="22.50" value={fillForm.pricePerLitre} onChange={e=>setFillForm({...fillForm,pricePerLitre:e.target.value})}/></div><div style={S2}><label style={LBL}>Station Name</label><input style={INP} placeholder="e.g. Shell Vereeniging" value={fillForm.station||""} onChange={e=>setFillForm({...fillForm,station:e.target.value})}/></div><div style={S2}><label style={LBL}>Odometer (km)</label><input type="number" style={INP} placeholder="87500" value={fillForm.odometer} onChange={e=>setFillForm({...fillForm,odometer:e.target.value})}/></div><div style={S2}><label style={LBL}>Notes</label><input style={INP} placeholder="Optional notes…" value={fillForm.notes} onChange={e=>setFillForm({...fillForm,notes:e.target.value})}/></div></div>
             <div style={{marginTop:12,paddingTop:12,borderTop:"1px solid #f0f0f0"}}><div style={{fontSize:12,fontWeight:700,color:"#555",marginBottom:8}}>🛒 Additional Items</div><div style={{display:"flex",gap:8,marginBottom:8}}><input style={{...INP,flex:2}} placeholder="Item (e.g. Engine oil)" value={extraItem.item} onChange={e=>setExtraItem({...extraItem,item:e.target.value})}/><input type="number" step="0.01" style={{...INP,flex:1}} placeholder="R" value={extraItem.cost} onChange={e=>setExtraItem({...extraItem,cost:e.target.value})}/><button onClick={addExtra} style={{background:"#2c5fff",border:"none",borderRadius:10,padding:"0 14px",color:"#fff",fontWeight:700,fontSize:18,cursor:"pointer",fontFamily:"inherit",flexShrink:0}}>+</button></div>{(fillForm.extras||[]).map(e=>(<div key={e.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 10px",background:"#f8f9fc",borderRadius:8,marginBottom:6}}><span style={{fontSize:13}}>{e.item}</span><div style={{display:"flex",gap:8,alignItems:"center"}}><span style={{fontSize:13,fontWeight:700,color:"#1a7a48"}}>R{fmt(Number(e.cost))}</span><button onClick={()=>removeExtra(e.id)} style={{background:"#fff0f0",border:"none",borderRadius:6,padding:"2px 8px",cursor:"pointer",color:"#cc2222",fontSize:12,fontFamily:"inherit"}}>✕</button></div></div>))}</div>
             {fillForm.litres&&fillForm.pricePerLitre&&(()=>{const ft=Number(fillForm.litres)*Number(fillForm.pricePerLitre);const ex=(fillForm.extras||[]).reduce((s,e)=>s+Number(e.cost||0),0);return(<div style={{marginTop:10,borderRadius:10,overflow:"hidden"}}><div style={{padding:"8px 12px",background:"#f0faf4",display:"flex",justifyContent:"space-between"}}><span style={{fontSize:12,color:"#888"}}>Fuel</span><span style={{fontSize:13,fontWeight:700,color:"#1a7a48"}}>R{fmt(ft)}</span></div>{ex>0&&<div style={{padding:"8px 12px",background:"#f5f0ff",display:"flex",justifyContent:"space-between"}}><span style={{fontSize:12,color:"#888"}}>Extras ({(fillForm.extras||[]).length})</span><span style={{fontSize:13,fontWeight:700,color:"#6a2ccc"}}>R{fmt(ex)}</span></div>}<div style={{padding:"9px 12px",background:"#1a2a6c",display:"flex",justifyContent:"space-between"}}><span style={{fontSize:12,color:"rgba(255,255,255,0.8)",fontWeight:600}}>Station Total</span><span style={{fontSize:14,fontWeight:800,color:"#fff"}}>R{fmt(ft+ex)}</span></div></div>);})()}
             <div style={{marginTop:10}}><PhotoPicker value={fillForm.receipt} onChange={v=>setFillForm({...fillForm,receipt:v})}/></div>
@@ -855,18 +857,18 @@ export default function App(){
           </div>
         )}
 
-        {/* ════ SERVICE ════ */}
+        {/* ---- SERVICE ---- */}
         {tab==="service"&&(
           <div>
             <ST>Log a Service</ST>
-            <Card><div style={G2}><div style={S2}><label style={LBL}>Date</label><input type="date" style={INP} value={svcForm.date} onChange={e=>setSvcForm({...svcForm,date:e.target.value})}/></div><div style={S2}><label style={LBL}>Type</label><select style={INP} value={svcForm.type} onChange={e=>{const t=e.target.value;const def=SVC.find(x=>x.id===t);const next=def?.km&&svcForm.odomAtService?String(Number(svcForm.odomAtService)+def.km):"";setSvcForm({...svcForm,type:t,nextOdomDue:t!=="custom"?next:svcForm.nextOdomDue});}}>{SVC.map(s=><option key={s.id} value={s.id}>{s.label}{s.km?` (every ${s.km.toLocaleString()} km)`:""}</option>)}</select></div>{svcForm.type==="custom"&&<div style={S2}><label style={LBL}>Name</label><input style={INP} value={svcForm.customLabel} onChange={e=>setSvcForm({...svcForm,customLabel:e.target.value})}/></div>}{svcForm.type!=="custom"&&<div style={{...S2,padding:"8px 12px",background:"#f5f0ff",borderRadius:8,fontSize:12,color:"#6a2ccc"}}>{SVC.find(s=>s.id===svcForm.type)?.desc}</div>}<div><label style={LBL}>Odo at Service</label><input type="number" style={INP} placeholder="87500" value={svcForm.odomAtService} onChange={e=>{const val=e.target.value;const def=SVC.find(x=>x.id===svcForm.type);const next=def?.km&&val?String(Number(val)+def.km):"";setSvcForm({...svcForm,odomAtService:val,nextOdomDue:svcForm.type!=="custom"?next:svcForm.nextOdomDue});}}/></div><div><label style={LBL}>Next Service Odo</label><input type="number" style={INP} placeholder="Auto-set" value={svcForm.nextOdomDue} onChange={e=>setSvcForm({...svcForm,nextOdomDue:e.target.value})}/></div><div style={S2}><label style={LBL}>Next Service Date</label><input type="date" style={INP} value={svcForm.nextDateDue} onChange={e=>setSvcForm({...svcForm,nextDateDue:e.target.value})}/></div><div style={S2}><label style={LBL}>Cost (R)</label><input type="number" step="0.01" style={INP} placeholder="1850.00" value={svcForm.cost} onChange={e=>setSvcForm({...svcForm,cost:e.target.value})}/></div><div style={S2}><label style={LBL}>🏢 Service Centre / Workshop</label><input style={INP} placeholder="e.g. Midas Vereeniging, Toyota dealer" value={svcForm.serviceCenter||""} onChange={e=>setSvcForm({...svcForm,serviceCenter:e.target.value})}/></div><div style={S2}><label style={LBL}>🧾 Invoice Number</label><input style={INP} placeholder="e.g. INV-2025-0042" value={svcForm.invoiceNo||""} onChange={e=>setSvcForm({...svcForm,invoiceNo:e.target.value})}/></div><div style={S2}><label style={LBL}>Notes</label><input style={INP} placeholder="Parts replaced, warranty info..." value={svcForm.notes} onChange={e=>setSvcForm({...svcForm,notes:e.target.value})}/></div><div style={S2}><PhotoPicker value={svcForm.receipt} onChange={v=>setSvcForm({...svcForm,receipt:v})}/></div></div>{svcForm.odomAtService&&svcForm.nextOdomDue&&curOdom>0&&<div style={{marginTop:10,padding:"8px 12px",background:"#f5f0ff",borderRadius:8,fontSize:12,color:"#6a2ccc",fontWeight:600}}>🔧 {fmtKm(Number(svcForm.nextOdomDue)-curOdom)} km until next service</div>}<BtnP g="linear-gradient(135deg,#4a1a8c,#7c3fff)" onClick={saveSvc}>{editSvcId?"Update":"Save Service"}</BtnP>{editSvcId&&<BtnC onClick={()=>{setEditSvcId(null);setSvcForm({date:today(),type:"minor",customLabel:"",serviceCenter:"",invoiceNo:"",odomAtService:"",nextOdomDue:"",nextDateDue:"",cost:"",notes:"",receipt:""});}}/>}</Card>
+            <Card><div style={G2}><div style={S2}><label style={LBL}>Date</label><input type="date" style={INP} value={svcForm.date} onChange={e=>setSvcForm({...svcForm,date:e.target.value})}/></div><div style={S2}><label style={LBL}>Type</label><select style={INP} value={svcForm.type} onChange={e=>{const t=e.target.value;const def=SVC.find(x=>x.id===t);const next=def?.km&&svcForm.odomAtService?String(Number(svcForm.odomAtService)+def.km):"";setSvcForm({...svcForm,type:t,nextOdomDue:t!=="custom"?next:svcForm.nextOdomDue});}}>{SVC.map(s=><option key={s.id} value={s.id}>{s.label}{s.km?` (every ${s.km.toLocaleString()} km)`:""}</option>)}</select></div>{svcForm.type==="custom"&&<div style={S2}><label style={LBL}>Name</label><input style={INP} value={svcForm.customLabel} onChange={e=>setSvcForm({...svcForm,customLabel:e.target.value})}/></div>}{svcForm.type!=="custom"&&<div style={{...S2,padding:"8px 12px",background:"#f5f0ff",borderRadius:8,fontSize:12,color:"#6a2ccc"}}>{SVC.find(s=>s.id===svcForm.type)?.desc}</div>}<div><label style={LBL}>Odo at Service</label><input type="number" style={INP} placeholder="87500" value={svcForm.odomAtService} onChange={e=>{const val=e.target.value;const def=SVC.find(x=>x.id===svcForm.type);const next=def?.km&&val?String(Number(val)+def.km):"";setSvcForm({...svcForm,odomAtService:val,nextOdomDue:svcForm.type!=="custom"?next:svcForm.nextOdomDue});}}/></div><div><label style={LBL}>Next Service Odo</label><input type="number" style={INP} placeholder="Auto-set" value={svcForm.nextOdomDue} onChange={e=>setSvcForm({...svcForm,nextOdomDue:e.target.value})}/></div><div style={S2}><label style={LBL}>Next Service Date</label><input type="date" style={INP} value={svcForm.nextDateDue} onChange={e=>setSvcForm({...svcForm,nextDateDue:e.target.value})}/></div><div style={S2}><label style={LBL}>Cost (R)</label><input type="number" step="0.01" style={INP} placeholder="1850.00" value={svcForm.cost} onChange={e=>setSvcForm({...svcForm,cost:e.target.value})}/></div><div style={S2}><label style={LBL}>🏢 Service Centre / Workshop</label><input style={INP} placeholder="e.g. Midas Vereeniging, Toyota dealer" value={svcForm.serviceCenter||""} onChange={e=>setSvcForm({...svcForm,serviceCenter:e.target.value})}/></div><div style={S2}><label style={LBL}>🧾 Invoice Number</label><input style={INP} placeholder="e.g. INV-2025-0042" value={svcForm.invoiceNo||""} onChange={e=>setSvcForm({...svcForm,invoiceNo:e.target.value})}/></div><div style={S2}><label style={LBL}>Notes</label><input style={INP} placeholder="Parts replaced, warranty info…" value={svcForm.notes} onChange={e=>setSvcForm({...svcForm,notes:e.target.value})}/></div><div style={S2}><PhotoPicker value={svcForm.receipt} onChange={v=>setSvcForm({...svcForm,receipt:v})}/></div></div>{svcForm.odomAtService&&svcForm.nextOdomDue&&curOdom>0&&<div style={{marginTop:10,padding:"8px 12px",background:"#f5f0ff",borderRadius:8,fontSize:12,color:"#6a2ccc",fontWeight:600}}>🔧 {fmtKm(Number(svcForm.nextOdomDue)-curOdom)} km until next service</div>}<BtnP g="linear-gradient(135deg,#4a1a8c,#7c3fff)" onClick={saveSvc}>{editSvcId?"Update":"Save Service"}</BtnP>{editSvcId&&<BtnC onClick={()=>{setEditSvcId(null);setSvcForm({date:today(),type:"minor",customLabel:"",serviceCenter:"",invoiceNo:"",odomAtService:"",nextOdomDue:"",nextDateDue:"",cost:"",notes:"",receipt:""});}}/>}</Card>
             <ST>Service History ({vServices.length})</ST>
             {vServices.length===0&&<div style={{color:"#bbb",fontSize:13,textAlign:"center",marginTop:20}}>No services logged.</div>}
             {[...vServices].reverse().map(s=>{const def=SVC.find(x=>x.id===s.type);const lbl=s.type==="custom"?s.customLabel:(def?.label||s.type);const kl=s.nextOdomDue&&curOdom>0?Number(s.nextOdomDue)-curOdom:null;const ov=kl!=null&&kl<0;const nd=kl!=null&&kl<=2000&&kl>=0;return(<Card key={s.id} style={{borderLeft:`4px solid ${ov?"#cc2222":nd?"#e88c00":"#7c3fff"}`}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}><div style={{flex:1}}><div style={{fontWeight:700,fontSize:14,marginBottom:2}}>{lbl}</div><div style={{fontSize:12,color:"#888"}}>{s.date}{s.odomAtService?" · "+Number(s.odomAtService).toLocaleString()+" km":""}</div>{Number(s.cost)>0&&<div style={{marginTop:4,fontSize:13,fontWeight:700,color:"#6a2ccc"}}>💸 R{fmt(Number(s.cost))}</div>}{s.serviceCenter&&<div style={{fontSize:12,color:"#555",marginTop:3}}>🏢 {s.serviceCenter}</div>}{s.invoiceNo&&<div style={{fontSize:12,color:"#888",marginTop:1}}>🧾 Invoice: {s.invoiceNo}</div>}{s.notes&&<div style={{fontSize:12,color:"#888",marginTop:2}}>{s.notes}</div>}{s.nextOdomDue&&<div style={{marginTop:5,fontSize:12,fontWeight:600,color:ov?"#cc2222":nd?"#e88c00":"#6a2ccc"}}>🔧 Next: {Number(s.nextOdomDue).toLocaleString()} km {kl!=null?(ov?`(OVERDUE ${Math.abs(kl).toFixed(0)} km)`:`(${fmtKm(kl)} km to go)`):""}</div>}{s.nextDateDue&&<div style={{fontSize:12,color:"#888"}}>📅 By {s.nextDateDue}</div>}{s.receipt&&<img src={s.receipt} alt="r" style={{width:"100%",maxHeight:100,objectFit:"cover",borderRadius:8,marginTop:8,border:"1px solid #eee"}}/>}</div><div style={{display:"flex",gap:6,marginLeft:8}}><Eb color="#7c3fff" bg="#f5f0ff" onClick={()=>{setEditSvcId(s.id);setSvcForm({...s});window.scrollTo(0,0);}}/><Db onClick={()=>setServices(ss=>ss.filter(x=>x.id!==s.id))}/></div></div></Card>);})}
           </div>
         )}
 
-        {/* ════ COSTS ════ */}
+        {/* ---- COSTS ---- */}
         {tab==="costs"&&(!isPro?<ProGate feature="Cost Categories" onUpgrade={()=>setShowUpgrade(true)}/>:(
           <div>
             <ST>Log a Cost</ST>
@@ -880,18 +882,18 @@ export default function App(){
           </div>
         ))}
 
-        {/* ════ CLAIMS ════ */}
+        {/* ---- CLAIMS ---- */}
         {tab==="claims"&&(!isPro?<ProGate feature="Insurance Claim Tracker" onUpgrade={()=>setShowUpgrade(true)}/>:(
           <div>
             <ST>Log a Claim</ST>
-            <Card><div style={G2}><div style={S2}><label style={LBL}>Accident Date</label><input type="date" style={INP} value={claimForm.accidentDate} onChange={e=>setClaimForm({...claimForm,accidentDate:e.target.value})}/></div><div style={S2}><label style={LBL}>Claim Number</label><input style={INP} placeholder="Claim reference" value={claimForm.claimNo} onChange={e=>setClaimForm({...claimForm,claimNo:e.target.value})}/></div><div style={S2}><label style={LBL}>Repair Cost (R)</label><input type="number" step="0.01" style={INP} placeholder="0.00" value={claimForm.repairCost} onChange={e=>setClaimForm({...claimForm,repairCost:e.target.value})}/></div><div style={S2}><label style={LBL}>Status</label><div style={{display:"flex",flexWrap:"wrap",gap:6}}>{CLAIM_STATUS.map(s=>{const cols={Pending:"#888",Submitted:"#1a52cc","In Assessment":"#b85c00",Approved:"#1a7a48",Rejected:"#cc2222",Closed:"#555"};const col=cols[s]||"#888";return(<button key={s} onClick={()=>setClaimForm({...claimForm,status:s})} style={{padding:"5px 12px",borderRadius:20,border:"2px solid",borderColor:claimForm.status===s?col:"#e5e7ef",background:claimForm.status===s?col+"15":"#fff",color:claimForm.status===s?col:"#888",fontWeight:600,fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>{s}</button>);})}</div></div><div style={S2}><label style={LBL}>Notes</label><textarea style={{...INP,minHeight:70,resize:"vertical",lineHeight:1.6}} placeholder="Accident details, third party, assessor notes..." value={claimForm.notes} onChange={e=>setClaimForm({...claimForm,notes:e.target.value})}/></div><div style={S2}><PhotoPicker value={claimForm.receipt} onChange={v=>setClaimForm({...claimForm,receipt:v})} label="📸 Damage / Scene Photo"/></div></div><BtnP g="linear-gradient(135deg,#cc2222,#ff4444)" onClick={saveClaim}>{editClaimId?"Update":"Log Claim"}</BtnP>{editClaimId&&<BtnC onClick={()=>{setEditClaimId(null);setClaimForm(BLANK_CLAIM());}}/>}</Card>
+            <Card><div style={G2}><div style={S2}><label style={LBL}>Accident Date</label><input type="date" style={INP} value={claimForm.accidentDate} onChange={e=>setClaimForm({...claimForm,accidentDate:e.target.value})}/></div><div style={S2}><label style={LBL}>Claim Number</label><input style={INP} placeholder="Claim reference" value={claimForm.claimNo} onChange={e=>setClaimForm({...claimForm,claimNo:e.target.value})}/></div><div style={S2}><label style={LBL}>Repair Cost (R)</label><input type="number" step="0.01" style={INP} placeholder="0.00" value={claimForm.repairCost} onChange={e=>setClaimForm({...claimForm,repairCost:e.target.value})}/></div><div style={S2}><label style={LBL}>Status</label><div style={{display:"flex",flexWrap:"wrap",gap:6}}>{CLAIM_STATUS.map(s=>{const cols={Pending:"#888",Submitted:"#1a52cc","In Assessment":"#b85c00",Approved:"#1a7a48",Rejected:"#cc2222",Closed:"#555"};const col=cols[s]||"#888";return(<button key={s} onClick={()=>setClaimForm({...claimForm,status:s})} style={{padding:"5px 12px",borderRadius:20,border:"2px solid",borderColor:claimForm.status===s?col:"#e5e7ef",background:claimForm.status===s?col+"15":"#fff",color:claimForm.status===s?col:"#888",fontWeight:600,fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>{s}</button>);})}</div></div><div style={S2}><label style={LBL}>Notes</label><textarea style={{...INP,minHeight:70,resize:"vertical",lineHeight:1.6}} placeholder="Accident details, third party, assessor notes…" value={claimForm.notes} onChange={e=>setClaimForm({...claimForm,notes:e.target.value})}/></div><div style={S2}><PhotoPicker value={claimForm.receipt} onChange={v=>setClaimForm({...claimForm,receipt:v})} label="📸 Damage / Scene Photo"/></div></div><BtnP g="linear-gradient(135deg,#cc2222,#ff4444)" onClick={saveClaim}>{editClaimId?"Update":"Log Claim"}</BtnP>{editClaimId&&<BtnC onClick={()=>{setEditClaimId(null);setClaimForm(BLANK_CLAIM());}}/>}</Card>
             <ST>Claims ({vClaims.length})</ST>
             {vClaims.length===0&&<div style={{color:"#bbb",fontSize:13,textAlign:"center",marginTop:20}}>No claims logged.</div>}
             {[...vClaims].reverse().map(cl=>{const cols={Pending:"#888",Submitted:"#1a52cc","In Assessment":"#b85c00",Approved:"#1a7a48",Rejected:"#cc2222",Closed:"#555"};const col=cols[cl.status]||"#888";return(<Card key={cl.id} style={{borderLeft:`4px solid ${col}`}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}><div style={{flex:1}}><div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}><span style={{fontWeight:700,fontSize:14}}>Accident: {cl.accidentDate}</span><span style={{fontSize:11,fontWeight:700,color:col,background:col+"18",padding:"2px 9px",borderRadius:20}}>{cl.status}</span></div>{cl.claimNo&&<div style={{fontSize:12,color:"#888"}}>Claim No: {cl.claimNo}</div>}{Number(cl.repairCost)>0&&<div style={{fontSize:13,fontWeight:700,color:"#cc2222",marginTop:4}}>💸 R{fmt(Number(cl.repairCost))}</div>}{cl.notes&&<div style={{fontSize:12,color:"#888",marginTop:4,lineHeight:1.6}}>{cl.notes}</div>}{cl.receipt&&<img src={cl.receipt} alt="damage" style={{width:"100%",maxHeight:180,objectFit:"cover",borderRadius:10,marginTop:10,border:"1px solid #eee"}}/>}</div><div style={{display:"flex",gap:6,marginLeft:8}}><Eb color={col} bg={col+"15"} onClick={()=>{setEditClaimId(cl.id);setClaimForm({...cl});window.scrollTo(0,0);}}/><Db onClick={()=>setClaims(cs=>cs.filter(x=>x.id!==cl.id))}/></div></div></Card>);})}
           </div>
         ))}
 
-        {/* ════ TYRES ════ */}
+        {/* ---- TYRES ---- */}
         {tab==="tyres"&&(!isPro?<ProGate feature="Tyre Tracker" onUpgrade={()=>setShowUpgrade(true)}/>:(
           <div>
             <ST>Tyre Diagram</ST>
@@ -903,7 +905,7 @@ export default function App(){
           </div>
         ))}
 
-        {/* ════ DOCS ════ */}
+        {/* ---- DOCS ---- */}
         {tab==="docs"&&(!isPro?<ProGate feature="Document Vault" onUpgrade={()=>setShowUpgrade(true)}/>:(
           <div>
             <ST>Document Vault</ST>
@@ -917,7 +919,7 @@ export default function App(){
           </div>
         ))}
 
-        {/* ════ SARS ════ */}
+        {/* ---- SARS ---- */}
         {tab==="sars"&&(!isPro?<ProGate feature="SARS Deduction Calculator" onUpgrade={()=>setShowUpgrade(true)}/>:(
           <div>
             <TaxBar/>
@@ -940,33 +942,88 @@ export default function App(){
           </div>
         ))}
 
-        {/* ════ EXPORT ════ */}
+        {/* ---- EXPORT ---- */}
         {tab==="export"&&(
           <div>
             <TaxBar/>
             <ST>SARS CSV Export</ST>
             <Card>
-              <div style={{textAlign:"center",padding:"8px 0"}}>
-                <div style={{fontSize:40,marginBottom:6}}>📊</div>
-                <div style={{fontWeight:700,fontSize:16,marginBottom:4}}>Download Logbook</div>
-                <div style={{fontSize:13,color:"#888",marginBottom:16,lineHeight:1.6}}>Exports <b>{vehicle.make||"your"} {vehicle.model||"vehicle"}</b> as CSV for SARS — includes trip log, fuel, services, costs and SARS deduction estimate.</div>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
-                  {[[vTrips.length,"Trips","#f0f4ff","#2c5fff"],[vFills.length,"Fill-ups","#f0faf4","#1a7a48"],[fmtKm(totKm)+" km","Distance","#fff5ee","#b85c00"],["R"+fmt(totRunning),"Running Cost","#fef6f6","#b52222"]].map(([v,l,bg,col])=>(<div key={l} style={{background:bg,borderRadius:12,padding:"12px 8px"}}><div style={{fontSize:17,fontWeight:800,color:col}}>{v}</div><div style={{fontSize:11,color:"#888"}}>{l}</div></div>))}
+              <div style={{textAlign:"center",padding:"8px 0 4px"}}>
+                <div style={{fontSize:36,marginBottom:6}}>📊</div>
+                <div style={{fontWeight:800,fontSize:16,marginBottom:4}}>Download Your Logbook</div>
+                <div style={{fontSize:13,color:"#888",marginBottom:14,lineHeight:1.6}}>
+                  <b>{vehicle.make||"Your"} {vehicle.model||"vehicle"} {vehicle.reg?`(${vehicle.reg})`:""}</b><br/>
+                  Opens directly in Excel, Google Sheets or Numbers
                 </div>
-                <button onClick={()=>doCSV(vTrips,vFills,vServices,vCosts,vClaims,vehicle,taxYear,sarsDed,claimable,totKm,totB)} style={{width:"100%",padding:"13px",borderRadius:14,border:"none",background:"linear-gradient(135deg,#1a2a6c,#2c5fff)",color:"#fff",fontWeight:800,fontSize:15,cursor:"pointer",fontFamily:"inherit",boxShadow:"0 4px 16px rgba(44,95,255,0.3)"}}>⬇️ Export to Excel (CSV)</button>
-                <div style={{fontSize:11,color:"#aaa",marginTop:8}}>Opens in Excel, Google Sheets, or Numbers</div>
+                {/* Summary tiles */}
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
+                  {[
+                    [vTrips.length,         "Trips logged",    "#f0f4ff","#1a6bc4"],
+                    [vFills.length,         "Fuel fill-ups",   "#f0faf4","#1a7a48"],
+                    [vServices.length,      "Services",        "#f5f0ff","#6a2ccc"],
+                    [vCosts.length,         "Other costs",     "#fff8f0","#b85c00"],
+                    [fmtKm(totKm)+" km",    "Total distance",  "#fff5ee","#b85c00"],
+                    ["R"+fmt(totRunning),   "Running cost",    "#fef6f6","#b52222"],
+                    [fmtKm(totB)+" km",     "Business km",     "#eef6ff","#1a52cc"],
+                    [claimable>0?"R"+fmt(claimable):"—", "SARS estimate", "#f0faf4","#1a7a48"],
+                  ].map(([v,l,bg,col])=>(
+                    <div key={l} style={{background:bg,borderRadius:10,padding:"10px 8px"}}>
+                      <div style={{fontSize:15,fontWeight:800,color:col}}>{v}</div>
+                      <div style={{fontSize:10,color:"#888",marginTop:1}}>{l}</div>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={()=>doCSV(vTrips,vFills,vServices,vCosts,vClaims,vehicle,taxYear,sarsDed,claimable,totKm,totB)} style={{width:"100%",padding:"14px",borderRadius:14,border:"none",background:`linear-gradient(135deg,${BRAND.navy},${BRAND.blue})`,color:"#fff",fontWeight:800,fontSize:15,cursor:"pointer",fontFamily:"inherit",boxShadow:"0 4px 16px rgba(26,107,196,0.35)",marginBottom:8}}>
+                  ⬇️ Export to Excel (CSV)
+                </button>
+                <div style={{fontSize:11,color:"#aaa"}}>File: LogbookProSA_{vehicle.reg||"logbook"}_{taxYear}.csv</div>
               </div>
             </Card>
+
+            {/* What's included — for beta testers */}
+            <ST>What's included in the export</ST>
+            <Card style={{padding:"14px 16px"}}>
+              {[
+                ["🚗","Vehicle & Driver Details",   "Make, model, reg, VIN number, licence expiry, RWC expiry (trucks/trailers only), driver's licence code & expiry, PDP details"],
+                ["📍","Full Trip Log",              "Every trip: date, purpose, from, to, odometer start & end, distance, business/private type, notes"],
+                ["⛽","Fuel Log",                  "Every fill-up: date, station name, litres, price per litre, fuel total, itemised extras, station total, odometer"],
+                ["🔧","Service Log",               "Every service: date, type, service centre, invoice number, odometer, cost, next service due"],
+                ["💳","Other Costs",               "Licence renewals, insurance premiums, tyres, roadworthy fees, repairs — categorised with amounts"],
+                ["📋","Insurance Claims",          "Accident date, claim number, repair cost, claim status and notes"],
+                ["📅","Monthly Summary",           "Per month: private km, business km, total km, fuel spend, service spend, other costs, monthly total"],
+                ["📊","Year Totals",               "Full-year totals across all categories plus total running cost"],
+                ["🧮","SARS Deduction Estimate",   "Total km, business km, business %, estimated deduction and claimable amount based on SARS rate tables"],
+              ].map(([icon,title,desc])=>(
+                <div key={title} style={{display:"flex",gap:12,padding:"10px 0",borderBottom:"1px solid #f0f0f0"}}>
+                  <div style={{fontSize:20,flexShrink:0,marginTop:1}}>{icon}</div>
+                  <div>
+                    <div style={{fontSize:13,fontWeight:700,color:"#1e2235",marginBottom:2}}>{title}</div>
+                    <div style={{fontSize:12,color:"#888",lineHeight:1.5}}>{desc}</div>
+                  </div>
+                </div>
+              ))}
+              <div style={{marginTop:12,padding:"10px 12px",background:"#f0faf4",borderRadius:10,fontSize:12,color:"#1a7a48",lineHeight:1.6}}>
+                <b>For beta testers</b> — export your data and open it in Excel or Google Sheets to verify every figure matches what you've entered. Each section is clearly labelled and easy to cross-reference.
+              </div>
+            </Card>
+
             <ST>Backup &amp; Restore</ST>
             <Card>
-              <div style={{fontSize:13,color:"#555",marginBottom:14,lineHeight:1.6}}><b>Backup</b> saves everything including documents &amp; plan status. <b>Restore</b> on any device.</div>
+              <div style={{fontSize:13,color:"#555",marginBottom:14,lineHeight:1.6}}>
+                <b>Backup</b> saves everything as a JSON file — vehicles, all data, and plan status. <b>Restore</b> on any device to pick up exactly where you left off.
+              </div>
               {backupMsg&&<div style={{padding:"9px 12px",borderRadius:10,background:backupMsg.startsWith("✅")?"#f0faf4":"#fff0f0",color:backupMsg.startsWith("✅")?"#1a7a48":"#cc2222",fontWeight:600,fontSize:13,marginBottom:12}}>{backupMsg}</div>}
               <button onClick={doBackup} style={{width:"100%",padding:"12px",borderRadius:12,border:"none",background:"linear-gradient(135deg,#1a7a48,#2cb96a)",color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer",fontFamily:"inherit",marginBottom:10}}>💾 Download Backup (JSON)</button>
               <button onClick={()=>restoreRef.current.click()} style={{width:"100%",padding:"12px",borderRadius:12,border:"1.5px dashed #aab",background:"#f8f9fc",color:"#555",fontWeight:700,fontSize:15,cursor:"pointer",fontFamily:"inherit"}}>📂 Restore from Backup</button>
               <input ref={restoreRef} type="file" accept=".json" style={{display:"none"}} onChange={doRestore}/>
             </Card>
-            <Card style={{background:"#fffbea",border:"1px solid #f0d060"}}><div style={{fontSize:13,fontWeight:700,color:"#7a5c00",marginBottom:4}}>⚠️ SARS Tip</div><div style={{fontSize:12,color:"#7a5c00",lineHeight:1.6}}>SA tax year: <b>1 March – 28 February</b>. SARS requires date, purpose, start &amp; end odometer and distance for every business trip.</div></Card>
-            {!isPro&&<div onClick={()=>setShowUpgrade(true)} style={{background:`linear-gradient(135deg,${BRAND.orange},#c45e00)`,borderRadius:14,padding:"14px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer",marginBottom:14}}><div style={{display:"flex",alignItems:"center",gap:10}}><LogoMark size={24}/><div><div style={{fontWeight:800,fontSize:14,color:"#fff"}}>Upgrade to Pro</div><div style={{fontSize:12,color:"rgba(255,255,255,0.85)"}}>Fleet · SARS calculator · Document vault & more</div></div></div><div style={{fontSize:22,color:"#fff"}}>›</div></div>}
+
+            <Card style={{background:"#fffbea",border:"1px solid #f0d060"}}>
+              <div style={{fontSize:13,fontWeight:700,color:"#7a5c00",marginBottom:4}}>⚠️ SARS Tip</div>
+              <div style={{fontSize:12,color:"#7a5c00",lineHeight:1.6}}>SA tax year runs <b>1 March to 28 February</b>. SARS requires the date, purpose, start and end odometer, and distance for every business trip. Your exported logbook contains all of this.</div>
+            </Card>
+
+            {!isPro&&<div onClick={()=>setShowUpgrade(true)} style={{background:`linear-gradient(135deg,${BRAND.orange},#c45e00)`,borderRadius:14,padding:"14px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer",marginBottom:14}}><div style={{display:"flex",alignItems:"center",gap:10}}><LogoMark size={24}/><div><div style={{fontWeight:800,fontSize:14,color:"#fff"}}>Upgrade to Pro</div><div style={{fontSize:12,color:"rgba(255,255,255,0.85)"}}>Fleet management · SARS calculator · Document vault</div></div></div><div style={{fontSize:22,color:"#fff"}}>›</div></div>}
           </div>
         )}
 
