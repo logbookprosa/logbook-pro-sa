@@ -516,6 +516,7 @@ export default function App(){
   const [reminderForm,setReminderForm]=useState({title:"",dueDate:"",note:""});
   const [backupMsg,setBackupMsg]=useState("");
   const restoreRef=useRef();
+  const [mapTrip,setMapTrip]=useState(null);
   const [docCat,setDocCat]=useState("vlic");
   const [docForm,setDocForm]=useState({label:"",data:"",date:today()});
   const [showSOS,setShowSOS]=useState(false);
@@ -1259,7 +1260,7 @@ export default function App(){
             <Card style={{padding:"14px 16px"}}>
               {[
                 ["🚗","Vehicle & Driver Details",   "Make, model, reg, VIN number, licence expiry, RWC expiry (trucks/trailers only), driver's licence code & expiry, PDP details"],
-                ["📍","Full Trip Log",              "Every trip: date, purpose, odometer start & end, distance, business/private type, notes"],
+                ["📍","Full Trip Log",              "Every trip: date, purpose, from, to, odometer start & end, distance, business/private type, notes"],
                 ["⛽","Fuel Log",                  "Every fill-up: date, station name, litres, price per litre, fuel total, itemised extras, station total, odometer"],
                 ["🔧","Service Log",               "Every service: date, type, service centre, invoice number, odometer, cost, next service due"],
                 ["💳","Other Costs",               "Licence renewals, insurance premiums, tyres, roadworthy fees, repairs — categorised with amounts"],
@@ -1314,6 +1315,8 @@ export default function App(){
         <button onClick={()=>{setShowTripList(false);setDescWarn(false);setTab("trips");window.scrollTo(0,0);}} style={{position:"fixed",bottom:isPro?116:84,right:16,padding:"12px 18px",borderRadius:30,border:"none",background:`linear-gradient(135deg,${BRAND.navy},${BRAND.blue})`,color:"#fff",fontSize:13,fontWeight:800,cursor:"pointer",boxShadow:"0 4px 20px rgba(26,107,196,0.5)",display:"flex",alignItems:"center",gap:6,zIndex:25,fontFamily:"inherit",whiteSpace:"nowrap"}}>＋ Quick Add Trip</button>
       )}
 
+      {/* MAP MODAL */}
+      {mapTrip&&(<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",zIndex:100,display:"flex",alignItems:"flex-end"}} onClick={()=>setMapTrip(null)}><div style={{width:"100%",maxWidth:480,margin:"0 auto",background:"#fff",borderRadius:"20px 20px 0 0",padding:"20px 16px 32px"}} onClick={e=>e.stopPropagation()}><div style={{fontWeight:800,fontSize:16,marginBottom:4}}>{mapTrip.description||"Trip"}</div><div style={{fontSize:13,color:"#888",marginBottom:14}}>{mapTrip.date} · {mapTrip.from} → {mapTrip.to} · {fmtKm(Number(mapTrip.odomEnd||0)-Number(mapTrip.odomStart||0))} km</div><iframe title="map" style={{width:"100%",height:260,borderRadius:12,border:"none"}} src={`https://maps.google.com/maps?q=${encodeURIComponent(mapTrip.from)}&daddr=${encodeURIComponent(mapTrip.to)}&output=embed`} allowFullScreen/><button onClick={()=>setMapTrip(null)} style={{width:"100%",marginTop:12,padding:"11px",borderRadius:12,border:"none",background:"#f0f0f0",color:"#555",fontWeight:700,fontSize:14,cursor:"pointer",fontFamily:"inherit"}}>Close</button><a href={`https://www.google.com/maps/dir/${encodeURIComponent(mapTrip.from)}/${encodeURIComponent(mapTrip.to)}`} target="_blank" rel="noreferrer" style={{display:"block",marginTop:8,padding:"11px",borderRadius:12,background:"linear-gradient(135deg,#1a2a6c,#2c5fff)",color:"#fff",fontWeight:700,fontSize:14,textAlign:"center",textDecoration:"none"}}>Open in Google Maps</a></div></div>)}
 
       {/* SOS MODAL */}
       {showSOS&&(<div style={{position:"fixed",inset:0,background:"rgba(180,0,0,0.85)",zIndex:150,display:"flex",alignItems:"flex-end"}} onClick={()=>setShowSOS(false)}><div style={{width:"100%",maxWidth:480,margin:"0 auto",background:"#fff",borderRadius:"20px 20px 0 0",padding:"24px 20px 40px"}} onClick={e=>e.stopPropagation()}>
@@ -1341,7 +1344,7 @@ export default function App(){
           {/* Fix 4: Upgrade slot always visible in free nav */}
           <button onClick={()=>setShowUpgrade(true)} style={{flex:1,padding:"5px 1px 4px",border:"none",background:"none",fontFamily:"inherit",fontSize:"8px",fontWeight:700,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:1,color:BRAND.orange,borderTop:`2px solid ${BRAND.orange}`}}>
             <span style={{fontSize:16}}>⭐</span>
-            <span>Pro Soon</span>
+            <span>Pro</span>
           </button>
         </div>
       ):(
@@ -1358,4 +1361,3 @@ export default function App(){
     </div>
   );
 }
-
