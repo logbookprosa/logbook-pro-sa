@@ -62,7 +62,7 @@ const PLAN_LIMITS = { free: { vehicles: 1, docs: 5 }, pro: { vehicles: 99, docs:
 // -- Helpers -------------------------------------------------------------------
 const today  = () => new Date().toISOString().split("T")[0];
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const fmt    = n => { const [i,d]=Number(n||0).toFixed(2).split("."); return "R "+i.replace(/\B(?=(\d{3})+(?!\d))/g," ")+"."+d; };
+const fmt    = n => Number(n||0).toFixed(2);
 const fmtKm  = n => Number(n||0).toFixed(1);
 const uid    = () => Date.now().toString(36) + Math.random().toString(36).slice(2,6);
 
@@ -156,7 +156,7 @@ const PRO_ROW1   = ALL_TABS.slice(0,6);   // Home → Service
 const PRO_ROW2   = ALL_TABS.slice(6);     // Costs → Export
 
 const BLANK_VEHICLE=(colorIdx=0)=>({
-  id:uid(),make:"",model:"",year:"",vehicleType:"Car",reg:"",vinNo:"",fuelType:"",
+  id:uid(),make:"",model:"",year:"",vehicleType:"Car",reg:"",vinNo:"",
   licenceExpiry:"",rwcExpiry:"",currentOdometer:"",
   color:VEHICLE_COLORS[colorIdx%VEHICLE_COLORS.length],
   driver:{licenceNo:"",licenceCode:"Code EB",licenceExpiry:"",pdpType:"None",pdpNo:"",pdpExpiry:""},
@@ -200,10 +200,10 @@ function doCSV(trips,fills,services,costs,claims,vehicle,taxYear,sarsDed,claimab
   c+=[vehicle.vehicleType,vehicle.make,vehicle.model,vehicle.year,vehicle.reg,vehicle.vinNo,vehicle.licenceExpiry,...(needsRWC?[vehicle.rwcExpiry]:[])].map(q).join(",")+"\n\n";
   c+="DRIVER LICENCE\n"+["Lic No","Code","Expiry","PDP Type","PDP No","PDP Expiry"].map(q).join(",")+"\n";
   c+=[vehicle.driver?.licenceNo,vehicle.driver?.licenceCode,vehicle.driver?.licenceExpiry,vehicle.driver?.pdpType,vehicle.driver?.pdpNo,vehicle.driver?.pdpExpiry].map(q).join(",")+"\n\n";
-  c+="TRIP LOG\n"+["Date","Description","Odo Start","Odo End","Distance (km)","Type","Notes"].map(q).join(",")+"\n";
-  fT.forEach(t=>c+=[t.date,t.description,t.odomStart,t.odomEnd,fmtKm(Number(t.odomEnd||0)-Number(t.odomStart||0)),t.type,t.notes||""].map(q).join(",")+"\n");
-  c+="\nFUEL LOG\n"+["Date","Odometer","Station","Fuel Type","Litres","Oil Cost (R)","Total Amount (R)","Cost per Litre (R)","Notes"].map(q).join(",")+"\n";
-  fF.forEach(f=>{const fa=Number(f.totalAmount||0)-Number(f.oilCost||0);const cpl=Number(f.litres||0)>0?(fa/Number(f.litres||0)).toFixed(2):"";c+=[f.date,f.odometer,f.station||"",f.fuelType||"",parseFloat(Number(f.litres||0).toFixed(3)),Number(f.oilCost||0).toFixed(2),Number(f.totalAmount||0).toFixed(2),cpl,f.notes||""].map(q).join(",")+"\n";});
+  c+="TRIP LOG\n"+["Date","Description","From","To","Odo Start","Odo End","Distance (km)","Type","Notes"].map(q).join(",")+"\n";
+  fT.forEach(t=>c+=[t.date,t.description,t.from,t.to,t.odomStart,t.odomEnd,fmtKm(Number(t.odomEnd||0)-Number(t.odomStart||0)),t.type,t.notes||""].map(q).join(",")+"\n");
+  c+="\nFUEL LOG\n"+["Date","Station","Litres","R/L","Fuel Total","Extras","Station Total","Odo"].map(q).join(",")+"\n";
+  fF.forEach(f=>{const ex=(f.extras||[]).reduce((s,e)=>s+Number(e.cost||0),0);const ft=Number(f.litres||0)*Number(f.pricePerLitre||0);c+=[f.date,f.station||f.notes||"",f.litres,f.pricePerLitre,fmt(ft),fmt(ex),fmt(ft+ex),f.odometer].map(q).join(",")+"\n";(f.extras||[]).forEach(e=>c+=["","  +"+e.item,"","","","",fmt(e.cost),""].map(q).join(",")+"\n");});
   c+="\nSERVICE LOG\n"+["Date","Type","Service Centre","Invoice No","Odometer","Cost (R)","Next Odo","Next Date","Notes"].map(q).join(",")+"\n";
   fS.forEach(s=>{const l=s.type==="custom"?s.customLabel:(SVC.find(x=>x.id===s.type)?.label||s.type);c+=[s.date,l,s.serviceCenter||"",s.invoiceNo||"",s.odomAtService,fmt(Number(s.cost||0)),s.nextOdomDue,s.nextDateDue,s.notes].map(q).join(",")+"\n";});
   c+="\nOTHER COSTS\n"+["Date","Category","Description","Amount (R)"].map(q).join(",")+"\n";
@@ -211,14 +211,14 @@ function doCSV(trips,fills,services,costs,claims,vehicle,taxYear,sarsDed,claimab
   if(claims.length){c+="\nINSURANCE CLAIMS\n"+["Accident Date","Claim No","Repair Cost","Status","Notes"].map(q).join(",")+"\n";claims.forEach(cl=>c+=[cl.accidentDate,cl.claimNo,fmt(Number(cl.repairCost||0)),cl.status,cl.notes].map(q).join(",")+"\n");}
   const mo={},fo={},so={},co={};
   fT.forEach(t=>{const m=t.date?.slice(0,7);if(!m)return;if(!mo[m])mo[m]={p:0,b:0};const k=Number(t.odomEnd||0)-Number(t.odomStart||0);t.type==="Private"?mo[m].p+=k:mo[m].b+=k;});
-  fF.forEach(f=>{const m=f.date?.slice(0,7);if(!m)return;fo[m]=(fo[m]||0)+Number(f.totalAmount||0);});
+  fF.forEach(f=>{const m=f.date?.slice(0,7);if(!m)return;const ex=(f.extras||[]).reduce((s,e)=>s+Number(e.cost||0),0);fo[m]=(fo[m]||0)+Number(f.litres||0)*Number(f.pricePerLitre||0)+ex;});
   fS.forEach(s=>{const m=s.date?.slice(0,7);if(!m)return;so[m]=(so[m]||0)+Number(s.cost||0);});
   fC.forEach(c2=>{const m=c2.date?.slice(0,7);if(!m)return;co[m]=(co[m]||0)+Number(c2.amount||0);});
   c+="\nMONTHLY SUMMARY\n"+["Month","Private km","Business km","Total km","Fuel R","Service R","Other R","Total R"].map(q).join(",")+"\n";
   [...new Set([...Object.keys(mo),...Object.keys(fo),...Object.keys(so),...Object.keys(co)])].sort().forEach(m=>{const d=mo[m]||{p:0,b:0};c+=[m,fmtKm(d.p),fmtKm(d.b),fmtKm(d.p+d.b),fmt(fo[m]||0),fmt(so[m]||0),fmt(co[m]||0),fmt((fo[m]||0)+(so[m]||0)+(co[m]||0))].map(q).join(",")+"\n";});
   const tP=fT.reduce((s,t)=>t.type==="Private"?s+(Number(t.odomEnd||0)-Number(t.odomStart||0)):s,0);
   const tB2=fT.reduce((s,t)=>t.type==="Business"?s+(Number(t.odomEnd||0)-Number(t.odomStart||0)):s,0);
-  const tF2=fF.reduce((s,f)=>s+Number(f.totalAmount||0),0);
+  const tF2=fF.reduce((s,f)=>s+Number(f.litres||0)*Number(f.pricePerLitre||0)+(f.extras||[]).reduce((x,e)=>x+Number(e.cost||0),0),0);
   const tS2=fS.reduce((s,sv)=>s+Number(sv.cost||0),0);
   const tC2=fC.reduce((s,c2)=>s+Number(c2.amount||0),0);
   c+="\nYEAR TOTALS\n"+["Private km","Business km","Total km","Fuel+Extras R","Service R","Other R","Total Running Cost R"].map(q).join(",")+"\n";
@@ -248,87 +248,6 @@ function PhotoPicker({value,onChange,label="📷 Photo / Scan (optional)"}){
   return(<div><label style={LBL}>{label}</label>{value?<div style={{position:"relative",marginTop:8}}><img src={value} alt="img" style={{width:"100%",maxHeight:160,objectFit:"cover",borderRadius:10,border:"1.5px solid #e5e7ef"}}/><button onClick={()=>onChange("")} style={{position:"absolute",top:6,right:6,background:"rgba(0,0,0,0.55)",border:"none",borderRadius:20,color:"#fff",fontSize:13,padding:"2px 8px",cursor:"pointer",fontFamily:"inherit"}}>✕</button></div>:<button onClick={()=>r.current.click()} style={{...INP,color:"#888",textAlign:"left",cursor:"pointer",border:"1.5px dashed #ccd"}}>Tap to attach photo or scan</button>}<input ref={r} type="file" accept="image/*" style={{display:"none"}} onChange={pick}/></div>);
 }
 function TyreWheel({tread,label,onClick}){const st=TYRE_STATUS(tread);return(<div onClick={onClick} style={{cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}><div style={{width:44,height:66,borderRadius:8,background:st.bg,border:`3px solid ${st.color}`,display:"flex",alignItems:"center",justifyContent:"center"}}><div style={{fontSize:12,fontWeight:800,color:st.color}}>{tread?tread+"mm":"?"}</div></div><div style={{fontSize:9,color:"#888",textAlign:"center",maxWidth:50}}>{label}</div><div style={{fontSize:9,fontWeight:700,color:st.color}}>{st.label}</div></div>);}
-
-// -- Trip List View ------------------------------------------------------------
-function TripList({ trips, onBack }) {
-  if (!trips || trips.length === 0) {
-    return (
-      <div style={{ padding: "20px 16px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-          <button onClick={onBack} style={{ background: "#eef2ff", border: "none", borderRadius: 10, padding: "8px 14px", color: "#2c5fff", fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>← Back</button>
-          <div style={{ fontSize: 16, fontWeight: 800, color: "#1e2235" }}>All Trips</div>
-        </div>
-        <div style={{ textAlign: "center", color: "#bbb", fontSize: 14, marginTop: 40 }}>No trips logged yet.</div>
-      </div>
-    );
-  }
-  const sorted = [...trips].sort((a, b) => new Date(a.date) - new Date(b.date));
-  const totalKM = sorted.reduce((sum, t) => sum + (Number(t.odomEnd || 0) - Number(t.odomStart || 0)), 0);
-  const totalBiz = sorted.filter(t => t.type === "Business").reduce((sum, t) => sum + (Number(t.odomEnd || 0) - Number(t.odomStart || 0)), 0);
-  const totalPriv = sorted.filter(t => t.type === "Private").reduce((sum, t) => sum + (Number(t.odomEnd || 0) - Number(t.odomStart || 0)), 0);
-  return (
-    <div style={{ padding: "16px" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-        <button onClick={onBack} style={{ background: "#eef2ff", border: "none", borderRadius: 10, padding: "8px 14px", color: "#2c5fff", fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>← Back</button>
-        <div>
-          <div style={{ fontSize: 16, fontWeight: 800, color: "#1e2235" }}>All Trips</div>
-          <div style={{ fontSize: 11, color: "#888" }}>{trips.length} trip{trips.length !== 1 ? "s" : ""} recorded</div>
-        </div>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 14 }}>
-        <div style={{ background: "#eef2ff", borderRadius: 12, padding: "10px 12px" }}>
-          <div style={{ fontSize: 10, color: "#888", marginBottom: 2 }}>Total KM</div>
-          <div style={{ fontSize: 14, fontWeight: 800, color: "#2c5fff" }}>{Number(totalKM).toFixed(1)}</div>
-        </div>
-        <div style={{ background: "#d4f5e2", borderRadius: 12, padding: "10px 12px" }}>
-          <div style={{ fontSize: 10, color: "#888", marginBottom: 2 }}>Business</div>
-          <div style={{ fontSize: 14, fontWeight: 800, color: "#1a7a48" }}>{Number(totalBiz).toFixed(1)}</div>
-        </div>
-        <div style={{ background: "#fce8d5", borderRadius: 12, padding: "10px 12px" }}>
-          <div style={{ fontSize: 10, color: "#888", marginBottom: 2 }}>Private</div>
-          <div style={{ fontSize: 14, fontWeight: 800, color: "#b85c00" }}>{Number(totalPriv).toFixed(1)}</div>
-        </div>
-      </div>
-      <div style={{ overflowX: "auto", background: "#fff", borderRadius: 14, boxShadow: "0 2px 12px rgba(0,0,0,0.07)" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-          <thead>
-            <tr style={{ background: "#f3f4f9" }}>
-              {["Date","Description","Odo Start","Odo End","KM","Type","Notes"].map(h => (
-                <th key={h} style={{ padding: "10px 8px", textAlign: "left", fontWeight: 700, color: "#6b7080", fontSize: 11, whiteSpace: "nowrap" }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map((trip, index) => {
-              const prevTrip = sorted[index - 1];
-              const hasGap = prevTrip && Number(trip.odomStart) !== Number(prevTrip.odomEnd);
-              const km = Number(trip.odomEnd || 0) - Number(trip.odomStart || 0);
-              return (
-                <tr key={trip.id || index} style={{ backgroundColor: hasGap ? "#fff3cd" : index % 2 === 0 ? "#fff" : "#fafbfc", borderTop: "1px solid #f0f0f0" }}>
-                  <td style={{ padding: "9px 8px", whiteSpace: "nowrap", color: "#1e2235", fontWeight: 600 }}>{trip.date}</td>
-                  <td style={{ padding: "9px 8px" }}>
-                    <span style={{ padding: "3px 8px", borderRadius: 12, fontSize: 11, color: "white", fontWeight: 700, background: trip.type === "Business" ? "#1a6bc4" : "#e87722", whiteSpace: "nowrap" }}>
-                      {trip.type}
-                    </span>
-                  </td>
-                  <td style={{ padding: "9px 8px", color: "#555", maxWidth: 140 }}>{trip.description || "—"}</td>
-                  <td style={{ padding: "9px 8px", color: "#888", whiteSpace: "nowrap" }}>{Number(trip.odomStart || 0).toLocaleString()}</td>
-                  <td style={{ padding: "9px 8px", color: "#888", whiteSpace: "nowrap" }}>{Number(trip.odomEnd || 0).toLocaleString()}</td>
-                  <td style={{ padding: "9px 8px", fontWeight: 700, color: "#2c5fff", whiteSpace: "nowrap" }}>{Number(km).toFixed(1)}</td>
-                  <td style={{ padding: "9px 8px", color: "#888", maxWidth: 120 }}>
-                    {trip.notes || "—"}
-                    {hasGap && <div style={{ fontSize: 10, color: "#b85c00", fontWeight: 700, marginTop: 2 }}>⚠️ ODO gap before this trip</div>}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-      <div style={{ fontSize: 11, color: "#aaa", marginTop: 10, textAlign: "center" }}>🟡 Yellow rows indicate an odometer gap from the previous trip</div>
-    </div>
-  );
-}
 
 // -- Pro Gate ------------------------------------------------------------------
 function ProGate({feature,onUpgrade}){
@@ -499,7 +418,7 @@ export default function App(){
   const [vEdit,setVEdit]=useState(false);const [vDraft,setVDraft]=useState({});
   const [tripForm,setTripForm]=useState({date:today(),description:"",from:"",to:"",odomStart:"",odomEnd:"",type:"Business",notes:"",receipt:""});
   const [editTripId,setEditTripId]=useState(null);
-  const BLANK_FILL=()=>({date:today(),odometer:"",station:"",fuelType:vehicle?.fuelType||"Diesel",litres:"",oilCost:"",totalAmount:"",notes:"",receipt:""});
+  const BLANK_FILL=()=>({date:today(),litres:"",pricePerLitre:"",station:"",odometer:"",notes:"",receipt:"",extras:[]});
   const [fillForm,setFillForm]=useState(BLANK_FILL());
   const [editFillId,setEditFillId]=useState(null);
   const [extraItem,setExtraItem]=useState({item:"",cost:""});
@@ -519,8 +438,6 @@ export default function App(){
   const [docCat,setDocCat]=useState("vlic");
   const [docForm,setDocForm]=useState({label:"",data:"",date:today()});
   const [showSOS,setShowSOS]=useState(false);
-  const [showTripList,setShowTripList]=useState(false);
-  const [descWarn,setDescWarn]=useState(false);
 
   // -- Persist -------------------------------------------------------------
   useEffect(()=>{save("lb_vehicles",vehicles);},[vehicles]);
@@ -544,14 +461,16 @@ export default function App(){
 
   // Filtered trips (search)
   const filteredTrips=tripSearch.trim()
-    ?vTrips.filter(t=>[t.description,t.notes].join(" ").toLowerCase().includes(tripSearch.toLowerCase()))
+    ?vTrips.filter(t=>[t.description,t.from,t.to,t.notes].join(" ").toLowerCase().includes(tripSearch.toLowerCase()))
     :vTrips;
 
   // -- Computed -------------------------------------------------------------
   const totP=vTrips.reduce((s,t)=>t.type==="Private"?s+(Number(t.odomEnd||0)-Number(t.odomStart||0)):s,0);
   const totB=vTrips.reduce((s,t)=>t.type==="Business"?s+(Number(t.odomEnd||0)-Number(t.odomStart||0)):s,0);
   const totKm=totP+totB;
-  const totF=vFills.reduce((s,f)=>s+Number(f.totalAmount||0),0);
+  const fuelOnly=vFills.reduce((s,f)=>s+Number(f.litres||0)*Number(f.pricePerLitre||0),0);
+  const extrasOnly=vFills.reduce((s,f)=>s+(f.extras||[]).reduce((x,e)=>x+Number(e.cost||0),0),0);
+  const totF=fuelOnly+extrasOnly;
   const totS=vServices.reduce((s,sv)=>s+Number(sv.cost||0),0);
   const totLitres=vFills.reduce((s,f)=>s+Number(f.litres||0),0);
   const totOther=vCosts.reduce((s,c)=>s+Number(c.amount||0),0);
@@ -578,7 +497,7 @@ export default function App(){
   const fleetServices=services.filter(s=>inRange(s.date,range));
   const fleetCosts=costs.filter(c=>inRange(c.date,range));
   const fleetTotalKm=fleetTrips.reduce((s,t)=>s+(Number(t.odomEnd||0)-Number(t.odomStart||0)),0);
-  const fleetTotalCost=fleetFills.reduce((s,f)=>s+Number(f.totalAmount||0),0)+fleetServices.reduce((s,sv)=>s+Number(sv.cost||0),0)+fleetCosts.reduce((s,c)=>s+Number(c.amount||0),0);
+  const fleetTotalCost=fleetFills.reduce((s,f)=>s+Number(f.litres||0)*Number(f.pricePerLitre||0)+(f.extras||[]).reduce((x,e)=>x+Number(e.cost||0),0),0)+fleetServices.reduce((s,sv)=>s+Number(sv.cost||0),0)+fleetCosts.reduce((s,c)=>s+Number(c.amount||0),0);
   const fleetCostPerKm=fleetTotalKm>0?fleetTotalCost/fleetTotalKm:0;
   const vehicleStats=vehicles.map(v=>{
     const vTA=trips.filter(t=>t.vehicleId===v.id&&inRange(t.date,range));
@@ -586,7 +505,7 @@ export default function App(){
     const vSA=services.filter(s=>s.vehicleId===v.id&&inRange(s.date,range));
     const vCA=costs.filter(c=>c.vehicleId===v.id&&inRange(c.date,range));
     const km=vTA.reduce((s,t)=>s+(Number(t.odomEnd||0)-Number(t.odomStart||0)),0);
-    const total=vFA.reduce((s,f)=>s+Number(f.totalAmount||0),0)+vSA.reduce((s,sv)=>s+Number(sv.cost||0),0)+vCA.reduce((s,c)=>s+Number(c.amount||0),0);
+    const total=vFA.reduce((s,f)=>s+Number(f.litres||0)*Number(f.pricePerLitre||0)+(f.extras||[]).reduce((x,e)=>x+Number(e.cost||0),0),0)+vSA.reduce((s,sv)=>s+Number(sv.cost||0),0)+vCA.reduce((s,c)=>s+Number(c.amount||0),0);
     return{id:v.id,name:(`${v.make||""} ${v.model||""}`).trim()||v.reg||"Vehicle",reg:v.reg,km,total,costPerKm:km>0?total/km:0,color:v.color||VEHICLE_COLORS[0]};
   });
   const mostExpensive=[...vehicleStats].sort((a,b)=>b.costPerKm-a.costPerKm)[0];
@@ -613,22 +532,13 @@ export default function App(){
   const saveTrip=()=>{
     if(!tripForm.date||!tripForm.odomStart||!tripForm.odomEnd)return;
     if(Number(tripForm.odomEnd)<Number(tripForm.odomStart)){alert("❌ End odometer cannot be lower than start.");return;}
-    if(!tripForm.description){setDescWarn(true);}else{setDescWarn(false);}
     const e={...tripForm,vehicleId:vehicle.id,id:editTripId||uid()};
     if(editTripId){setTrips(ts=>ts.map(t=>t.id===editTripId?e:t));setEditTripId(null);}
     else setTrips(ts=>[...ts,e]);
     setVehicle({...vehicle,currentOdometer:tripForm.odomEnd});
-    setTripForm({date:today(),description:"",odomStart:"",odomEnd:"",type:"Business",notes:"",receipt:""});
+    setTripForm({date:today(),description:"",from:"",to:"",odomStart:"",odomEnd:"",type:"Business",notes:"",receipt:""});
   };
-  const saveFill=()=>{
-    if(!fillForm.date||!fillForm.odometer)return;
-    if(Number(fillForm.litres)<=0){alert("❌ Litres must be greater than 0.");return;}
-    if(Number(fillForm.totalAmount)<=0){alert("❌ Total amount must be greater than 0.");return;}
-    if(Number(fillForm.oilCost)>0&&Number(fillForm.oilCost)>=Number(fillForm.totalAmount)){alert("❌ Oil cost must be less than total amount.");return;}
-    const e={...fillForm,vehicleId:vehicle.id,id:editFillId||uid()};
-    if(editFillId){setFills(fs=>fs.map(f=>f.id===editFillId?e:f));setEditFillId(null);}else setFills(fs=>[...fs,e]);
-    setFillForm(BLANK_FILL());
-  };
+  const saveFill=()=>{if(!fillForm.date||!fillForm.litres||!fillForm.pricePerLitre)return;const e={...fillForm,vehicleId:vehicle.id,id:editFillId||uid()};if(editFillId){setFills(fs=>fs.map(f=>f.id===editFillId?e:f));setEditFillId(null);}else setFills(fs=>[...fs,e]);setFillForm(BLANK_FILL());};
   const saveSvc=()=>{if(!svcForm.date)return;const e={...svcForm,vehicleId:vehicle.id,id:editSvcId||uid()};if(editSvcId){setServices(ss=>ss.map(s=>s.id===editSvcId?e:s));setEditSvcId(null);}else setServices(ss=>[...ss,e]);setSvcForm({date:today(),type:"minor",customLabel:"",serviceCenter:"",invoiceNo:"",odomAtService:"",nextOdomDue:"",nextDateDue:"",cost:"",notes:"",receipt:""});};
   const saveCost=()=>{if(!costForm.date||!costForm.amount)return;const e={...costForm,vehicleId:vehicle.id,id:editCostId||uid()};if(editCostId){setCosts(cs=>cs.map(c=>c.id===editCostId?e:c));setEditCostId(null);}else setCosts(cs=>[...cs,e]);setCostForm(BLANK_COST());};
   const saveClaim=()=>{if(!claimForm.accidentDate)return;const e={...claimForm,vehicleId:vehicle.id,id:editClaimId||uid()};if(editClaimId){setClaims(cs=>cs.map(c=>c.id===editClaimId?e:c));setEditClaimId(null);}else setClaims(cs=>[...cs,e]);setClaimForm(BLANK_CLAIM());};
@@ -779,7 +689,7 @@ export default function App(){
               const pK=mT.filter(t=>t.type==="Private").reduce((s,t)=>s+(Number(t.odomEnd||0)-Number(t.odomStart||0)),0);
               const bK=mT.filter(t=>t.type==="Business").reduce((s,t)=>s+(Number(t.odomEnd||0)-Number(t.odomStart||0)),0);
               const mFills=vFills.filter(f=>f.date?.startsWith(m));
-              const mFuel=mFills.reduce((s,f)=>s+Number(f.totalAmount||0),0);
+              const mFuel=mFills.reduce((s,f)=>s+Number(f.litres||0)*Number(f.pricePerLitre||0)+(f.extras||[]).reduce((x,e)=>x+Number(e.cost||0),0),0);
               const mLit=mFills.reduce((s,f)=>s+Number(f.litres||0),0);
               const mSvc=vServices.filter(s=>s.date?.startsWith(m)).reduce((s,sv)=>s+Number(sv.cost||0),0);
               const mOth=vCosts.filter(c=>c.date?.startsWith(m)).reduce((s,c)=>s+Number(c.amount||0),0);
@@ -916,55 +826,11 @@ export default function App(){
 
         {/* ---- TRIPS ---- */}
         {tab==="trips"&&(
-          showTripList
-          ? <TripList trips={vTrips} onBack={()=>setShowTripList(false)} />
-          : <div>
-            {/* Trip Reminder Banner */}
-            {(()=>{
-              const allVTrips=[...trips].filter(t=>t.vehicleId===vehicle.id).sort((a,b)=>new Date(b.date)-new Date(a.date));
-              const last=allVTrips[0];
-              const daysSince=last?Math.floor((new Date(today())-new Date(last.date))/86400000):null;
-              const odoGap=last&&tripForm.odomStart&&!editTripId&&Number(tripForm.odomStart)!==Number(last.odomEnd);
-              return(<>
-                {daysSince!==null&&daysSince>=2&&(
-                  <div style={{margin:"10px 16px 0",padding:"10px 14px",background:"#fff8ee",border:"1px solid #f0c060",borderRadius:12,display:"flex",alignItems:"center",gap:10}}>
-                    <span style={{fontSize:20}}>⏰</span>
-                    <div style={{flex:1}}>
-                      <div style={{fontSize:12,fontWeight:700,color:"#7a5c00"}}>
-                        {daysSince===2?"You haven't logged a trip since yesterday!":daysSince<=7?`No trips logged for ${daysSince} days — don't forget!`:`⚠️ No trips in ${daysSince} days — your SARS logbook may be incomplete!`}
-                      </div>
-                      <div style={{fontSize:11,color:"#a07020",marginTop:2}}>Last trip: {last.date} — {last.description||"(no description)"}</div>
-                    </div>
-                  </div>
-                )}
-                {daysSince===null&&(
-                  <div style={{margin:"10px 16px 0",padding:"10px 14px",background:"#eef6ff",border:"1px solid #aad4ff",borderRadius:12,display:"flex",alignItems:"center",gap:10}}>
-                    <span style={{fontSize:20}}>📍</span>
-                    <div style={{fontSize:12,fontWeight:700,color:"#1a52cc"}}>Log your first trip below to start your SARS logbook!</div>
-                  </div>
-                )}
-                {daysSince===0&&(
-                  <div style={{margin:"10px 16px 0",padding:"10px 14px",background:"#f0faf4",border:"1px solid #a0d8b8",borderRadius:12,display:"flex",alignItems:"center",gap:10}}>
-                    <span style={{fontSize:20}}>✅</span>
-                    <div style={{fontSize:12,fontWeight:700,color:"#1a7a48"}}>Trip logged today — great work! Log another if you made more trips.</div>
-                  </div>
-                )}
-                {odoGap&&(
-                  <div style={{margin:"6px 16px 0",padding:"9px 14px",background:"#fff0f0",border:"1px solid #f0a0a0",borderRadius:12,display:"flex",alignItems:"center",gap:10}}>
-                    <span style={{fontSize:18}}>⚠️</span>
-                    <div>
-                      <div style={{fontSize:12,fontWeight:700,color:"#9a1a1a"}}>Odometer gap detected</div>
-                      <div style={{fontSize:11,color:"#9a1a1a",marginTop:1}}>Your opening odo ({tripForm.odomStart}) doesn't match the last trip's closing odo ({last.odomEnd}). Did you forget to log a trip in between?</div>
-                    </div>
-                  </div>
-                )}
-              </>);
-            })()}
+          <div>
             <ST>{editTripId?"Edit Trip":"Log a Trip"}</ST>
-            <Card><div style={G2}><div style={S2}><label style={LBL}>Date</label><input type="date" style={INP} value={tripForm.date} onChange={e=>setTripForm({...tripForm,date:e.target.value})}/></div><div style={S2}><label style={LBL}>Purpose</label><input style={{...INP,borderColor:descWarn&&!tripForm.description?"#e88c00":undefined}} placeholder="e.g. Client meeting, site visit" value={tripForm.description} onChange={e=>{setTripForm({...tripForm,description:e.target.value});if(descWarn)setDescWarn(false);}}/>{descWarn&&!tripForm.description&&<div style={{marginTop:4,fontSize:12,color:"#b85c00",fontWeight:600}}>⚠️ Adding a description helps with SARS compliance</div>}</div><div><label style={LBL}>Odo Start (km)</label><input type="number" style={INP} placeholder="87000" value={tripForm.odomStart} onChange={e=>setTripForm({...tripForm,odomStart:e.target.value})}/></div><div><label style={LBL}>Odo End (km)</label><input type="number" style={INP} placeholder="87120" value={tripForm.odomEnd} onChange={e=>setTripForm({...tripForm,odomEnd:e.target.value})}/></div><div style={S2}><label style={LBL}>Type</label><div style={{display:"flex",gap:10}}>{["Business","Private"].map(t=>(<button key={t} onClick={()=>setTripForm({...tripForm,type:t})} style={{flex:1,padding:"9px 0",borderRadius:10,border:"2px solid",borderColor:tripForm.type===t?(t==="Business"?"#2c5fff":"#b85c00"):"#e5e7ef",background:tripForm.type===t?(t==="Business"?"#eef2ff":"#fff5ee"):"#fff",color:tripForm.type===t?(t==="Business"?"#2c5fff":"#b85c00"):"#888",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>{t}</button>))}</div></div><div style={S2}><label style={LBL}>Notes <span style={{fontWeight:400,color:"#aaa"}}>(optional)</span></label><input style={INP} placeholder="e.g. Deliveries — see trip sheet #23" value={tripForm.notes||""} onChange={e=>setTripForm({...tripForm,notes:e.target.value})}/></div><div style={S2}><PhotoPicker value={tripForm.receipt} onChange={v=>setTripForm({...tripForm,receipt:v})}/></div></div>{tripForm.odomStart&&tripForm.odomEnd&&<div style={{marginTop:10,padding:"8px 12px",background:"#f0f4ff",borderRadius:8,fontSize:13,color:"#2c5fff",fontWeight:600}}>Distance: {fmtKm(Number(tripForm.odomEnd)-Number(tripForm.odomStart))} km</div>}<BtnP g="linear-gradient(135deg,#1a2a6c,#2c5fff)" onClick={saveTrip}>{editTripId?"Update":"Save Trip"}</BtnP>{editTripId&&<BtnC onClick={()=>{setEditTripId(null);setTripForm({date:today(),description:"",odomStart:"",odomEnd:"",type:"Business",notes:"",receipt:""});}}/>}</Card>
+            <Card><div style={G2}><div style={S2}><label style={LBL}>Date</label><input type="date" style={INP} value={tripForm.date} onChange={e=>setTripForm({...tripForm,date:e.target.value})}/></div><div style={S2}><label style={LBL}>Purpose</label><input style={INP} placeholder="e.g. Client meeting, site visit" value={tripForm.description} onChange={e=>setTripForm({...tripForm,description:e.target.value})}/></div><div><label style={LBL}>From</label><input style={INP} placeholder="Departure" value={tripForm.from} onChange={e=>setTripForm({...tripForm,from:e.target.value})}/></div><div><label style={LBL}>To</label><input style={INP} placeholder="Destination" value={tripForm.to} onChange={e=>setTripForm({...tripForm,to:e.target.value})}/></div><div><label style={LBL}>Odo Start (km)</label><input type="number" style={INP} placeholder="87000" value={tripForm.odomStart} onChange={e=>setTripForm({...tripForm,odomStart:e.target.value})}/></div><div><label style={LBL}>Odo End (km)</label><input type="number" style={INP} placeholder="87120" value={tripForm.odomEnd} onChange={e=>setTripForm({...tripForm,odomEnd:e.target.value})}/></div><div style={S2}><label style={LBL}>Type</label><div style={{display:"flex",gap:10}}>{["Business","Private"].map(t=>(<button key={t} onClick={()=>setTripForm({...tripForm,type:t})} style={{flex:1,padding:"9px 0",borderRadius:10,border:"2px solid",borderColor:tripForm.type===t?(t==="Business"?"#2c5fff":"#b85c00"):"#e5e7ef",background:tripForm.type===t?(t==="Business"?"#eef2ff":"#fff5ee"):"#fff",color:tripForm.type===t?(t==="Business"?"#2c5fff":"#b85c00"):"#888",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>{t}</button>))}</div></div><div style={S2}><label style={LBL}>Notes</label><input style={INP} placeholder="Optional trip notes…" value={tripForm.notes||""} onChange={e=>setTripForm({...tripForm,notes:e.target.value})}/></div><div style={S2}><PhotoPicker value={tripForm.receipt} onChange={v=>setTripForm({...tripForm,receipt:v})}/></div></div>{tripForm.odomStart&&tripForm.odomEnd&&<div style={{marginTop:10,padding:"8px 12px",background:"#f0f4ff",borderRadius:8,fontSize:13,color:"#2c5fff",fontWeight:600}}>Distance: {fmtKm(Number(tripForm.odomEnd)-Number(tripForm.odomStart))} km</div>}<BtnP g="linear-gradient(135deg,#1a2a6c,#2c5fff)" onClick={saveTrip}>{editTripId?"Update":"Save Trip"}</BtnP>{editTripId&&<BtnC onClick={()=>{setEditTripId(null);setTripForm({date:today(),description:"",from:"",to:"",odomStart:"",odomEnd:"",type:"Business",notes:"",receipt:""});}}/>}</Card>
             <div style={{display:"flex",gap:8,alignItems:"center",margin:"16px 0 8px"}}>
               <div style={{fontWeight:700,fontSize:11,color:"#9aa",letterSpacing:1.5,textTransform:"uppercase",flex:1}}>Trips ({filteredTrips.length}{tripSearch?` of ${vTrips.length}`:""}) </div>
-              {vTrips.length>0&&<button onClick={()=>setShowTripList(true)} style={{background:"linear-gradient(135deg,#1a2a6c,#2c5fff)",border:"none",borderRadius:10,padding:"6px 12px",color:"#fff",fontWeight:700,fontSize:11,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>📋 View All</button>}
             </div>
             <div style={{position:"relative",marginBottom:10}}>
               <input style={{...INP,paddingLeft:34}} placeholder="Search trips…" value={tripSearch} onChange={e=>setTripSearch(e.target.value)}/>
@@ -972,130 +838,22 @@ export default function App(){
               {tripSearch&&<button onClick={()=>setTripSearch("")} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",fontSize:16,color:"#aaa",cursor:"pointer"}}>✕</button>}
             </div>
             {filteredTrips.length===0&&<div style={{color:"#bbb",fontSize:13,textAlign:"center",marginTop:20}}>{tripSearch?"No trips match your search.":"No trips for this period."}</div>}
-            {[...filteredTrips].reverse().map(t=>{const km=Number(t.odomEnd||0)-Number(t.odomStart||0);return(<Card key={t.id}><div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}><div style={{flex:1}}><div style={{fontWeight:700,fontSize:14,marginBottom:2}}>{t.description||"—"}</div><div style={{fontSize:12,color:"#888"}}>{t.date}</div>{t.notes&&<div style={{fontSize:12,color:"#888",marginTop:2,fontStyle:"italic"}}>📝 {t.notes}</div>}<div style={{marginTop:6,display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><Badge type={t.type}/><span style={{fontSize:13,fontWeight:700}}>{fmtKm(km)} km</span></div>{t.receipt&&<img src={t.receipt} alt="r" style={{width:"100%",maxHeight:100,objectFit:"cover",borderRadius:8,marginTop:8,border:"1px solid #eee"}}/>}</div><div style={{display:"flex",gap:6,marginLeft:8}}><Eb color="#2c5fff" bg="#f0f4ff" onClick={()=>{setEditTripId(t.id);setTripForm({...t,notes:t.notes||""});window.scrollTo(0,0);}}/><Db onClick={()=>setTrips(ts=>ts.filter(x=>x.id!==t.id))}/></div></div></Card>);})}
+            {[...filteredTrips].reverse().map(t=>{const km=Number(t.odomEnd||0)-Number(t.odomStart||0);return(<Card key={t.id}><div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}><div style={{flex:1}}><div style={{fontWeight:700,fontSize:14,marginBottom:2}}>{t.description||"—"}</div><div style={{fontSize:12,color:"#888"}}>{t.date}{t.from?" · "+t.from:""}{t.to?" → "+t.to:""}</div>{t.notes&&<div style={{fontSize:12,color:"#888",marginTop:2,fontStyle:"italic"}}>{t.notes}</div>}<div style={{marginTop:6,display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><Badge type={t.type}/><span style={{fontSize:13,fontWeight:700}}>{fmtKm(km)} km</span>{t.from&&t.to&&<button onClick={()=>setMapTrip(t)} style={{background:"#eef6ff",border:"none",borderRadius:8,padding:"3px 9px",cursor:"pointer",color:"#1a52cc",fontWeight:600,fontSize:11,fontFamily:"inherit"}}>🗺 Map</button>}</div>{t.receipt&&<img src={t.receipt} alt="r" style={{width:"100%",maxHeight:100,objectFit:"cover",borderRadius:8,marginTop:8,border:"1px solid #eee"}}/>}</div><div style={{display:"flex",gap:6,marginLeft:8}}><Eb color="#2c5fff" bg="#f0f4ff" onClick={()=>{setEditTripId(t.id);setTripForm({...t,notes:t.notes||""});window.scrollTo(0,0);}}/><Db onClick={()=>setTrips(ts=>ts.filter(x=>x.id!==t.id))}/></div></div></Card>);})}
           </div>
         )}
 
         {/* ---- FUEL ---- */}
         {tab==="fuel"&&(
           <div>
-            {/* Fuel Summary Tiles */}
-            <div style={{padding:"14px 16px 0"}}>
-              <ST style={{margin:"0 0 8px"}}>Fuel Summary</ST>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:4}}>
-                {(()=>{
-                  const totFC=vFills.reduce((s,f)=>s+Number(f.totalAmount||0),0);
-                  const totOC=vFills.reduce((s,f)=>s+Number(f.oilCost||0),0);
-                  const totLit=vFills.reduce((s,f)=>s+Number(f.litres||0),0);
-                  const avgCPL=totLit>0?vFills.reduce((s,f)=>s+(Number(f.totalAmount||0)-Number(f.oilCost||0)),0)/totLit:0;
-                  return(<>
-                    <Tile label="⛽ Total Fuel Cost"  value={fmt(totFC)}   bg="#f0faf4" color="#1a7a48"/>
-                    <Tile label="🛢 Total Oil Cost"   value={fmt(totOC)}   bg="#fff8ee" color="#b85c00"/>
-                    <Tile label="💧 Total Litres"     value={totLit.toFixed(1)+" L"} bg="#eef6ff" color="#1a52cc"/>
-                    <Tile label="💰 Avg Cost/Litre"   value={avgCPL>0?"R "+avgCPL.toFixed(2):"—"} bg="#f5f0ff" color="#6a2ccc"/>
-                  </>);
-                })()}
-              </div>
-            </div>
-            {/* Log a Fill-Up Form */}
             <ST>{editFillId?"Edit Fill-Up":"Log a Fill-Up"}</ST>
-            <Card>
-              <div style={G2}>
-                <div><label style={LBL}>📅 Date</label><input type="date" style={INP} value={fillForm.date} onChange={e=>setFillForm({...fillForm,date:e.target.value})}/></div>
-                <div><label style={LBL}>🔢 Odometer (km)</label><input type="number" style={INP} placeholder="e.g. 87 500" value={fillForm.odometer} onChange={e=>setFillForm({...fillForm,odometer:e.target.value})}/></div>
-                <div style={S2}><label style={LBL}>🏪 Station / Garage</label><input style={INP} placeholder="e.g. Engen Vereeniging" value={fillForm.station||""} onChange={e=>setFillForm({...fillForm,station:e.target.value})}/></div>
-                <div style={S2}><label style={LBL}>⛽ Fuel Type</label>
-                  {vehicle.fuelType
-                    ? <div style={{...INP,background:"#f0faf4",color:"#1a7a48",fontWeight:700,border:"1.5px solid #a0d8b8"}}>{vehicle.fuelType} <span style={{fontSize:11,color:"#888",fontWeight:400}}>(from vehicle profile)</span></div>
-                    : <select style={INP} value={fillForm.fuelType} onChange={e=>setFillForm({...fillForm,fuelType:e.target.value})}>{["Diesel","Petrol 93","Petrol 95"].map(o=><option key={o} value={o}>{o}</option>)}</select>
-                  }
-                </div>
-                <div><label style={LBL}>💧 Litres Filled</label><input type="number" step="0.001" style={INP} placeholder="e.g. 55" value={fillForm.litres} onChange={e=>setFillForm({...fillForm,litres:e.target.value})}/></div>
-                <div><label style={LBL}>🛢 Oil Cost (R)</label><input type="number" step="0.01" style={INP} placeholder="0.00 if none" value={fillForm.oilCost} onChange={e=>setFillForm({...fillForm,oilCost:e.target.value})}/></div>
-                <div style={S2}><label style={LBL}>💳 Total Amount Paid (R)</label><input type="number" step="0.01" style={INP} placeholder="e.g. 1 265.00" value={fillForm.totalAmount} onChange={e=>setFillForm({...fillForm,totalAmount:e.target.value})}/></div>
-              </div>
-              {/* Live calculation */}
-              {(Number(fillForm.litres)>0||Number(fillForm.totalAmount)>0)&&(()=>{
-                const tot=Number(fillForm.totalAmount||0);
-                const oil=Number(fillForm.oilCost||0);
-                const lit=Number(fillForm.litres||0);
-                const fa=tot-oil;
-                const cpl=lit>0?fa/lit:0;
-                return(
-                  <div style={{background:"#f0f4ff",borderRadius:12,padding:"12px 14px",marginTop:10,border:"1px solid #c8d8ff"}}>
-                    <div style={{fontSize:11,fontWeight:700,color:"#1a52cc",marginBottom:8}}>⚡ Live Calculation</div>
-                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-                      <div style={{background:"#fff",borderRadius:10,padding:"8px 12px"}}>
-                        <div style={{fontSize:10,color:"#888",marginBottom:2}}>Fuel Amount</div>
-                        <div style={{fontSize:14,fontWeight:800,color:"#1a7a48"}}>{fa>0?fmt(fa):"—"}</div>
-                        <div style={{fontSize:10,color:"#888"}}>Total − Oil Cost</div>
-                      </div>
-                      <div style={{background:"#fff",borderRadius:10,padding:"8px 12px"}}>
-                        <div style={{fontSize:10,color:"#888",marginBottom:2}}>Cost per Litre</div>
-                        <div style={{fontSize:14,fontWeight:800,color:"#1a52cc"}}>{cpl>0?"R "+cpl.toFixed(2):"—"}</div>
-                        <div style={{fontSize:10,color:"#888"}}>Fuel ÷ Litres</div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
-              <div style={{marginTop:10}}><label style={LBL}>📝 Notes (optional)</label><input style={INP} placeholder="e.g. Full tank, oil top-up" value={fillForm.notes} onChange={e=>setFillForm({...fillForm,notes:e.target.value})}/></div>
-              <div style={{marginTop:10}}><PhotoPicker value={fillForm.receipt} onChange={v=>setFillForm({...fillForm,receipt:v})}/></div>
-              <BtnP g="linear-gradient(135deg,#1a7a48,#2cb96a)" onClick={saveFill}>{editFillId?"Update":"⛽ Save Fill-Up"}</BtnP>
-              {editFillId&&<BtnC onClick={()=>{setEditFillId(null);setFillForm(BLANK_FILL());}}/>}
-            </Card>
-            {/* Fill History */}
-            <ST>Fill History ({vFills.length})</ST>
+            <Card><div style={G2}><div style={S2}><label style={LBL}>Date</label><input type="date" style={INP} value={fillForm.date} onChange={e=>setFillForm({...fillForm,date:e.target.value})}/></div><div><label style={LBL}>Litres</label><input type="number" step="0.01" style={INP} placeholder="45.2" value={fillForm.litres} onChange={e=>setFillForm({...fillForm,litres:e.target.value})}/></div><div><label style={LBL}>Price / Litre (R)</label><input type="number" step="0.001" style={INP} placeholder="22.50" value={fillForm.pricePerLitre} onChange={e=>setFillForm({...fillForm,pricePerLitre:e.target.value})}/></div><div style={S2}><label style={LBL}>Station Name</label><input style={INP} placeholder="e.g. Shell Vereeniging" value={fillForm.station||""} onChange={e=>setFillForm({...fillForm,station:e.target.value})}/></div><div style={S2}><label style={LBL}>Odometer (km)</label><input type="number" style={INP} placeholder="87500" value={fillForm.odometer} onChange={e=>setFillForm({...fillForm,odometer:e.target.value})}/></div><div style={S2}><label style={LBL}>Notes</label><input style={INP} placeholder="Optional notes…" value={fillForm.notes} onChange={e=>setFillForm({...fillForm,notes:e.target.value})}/></div></div>
+            <div style={{marginTop:12,paddingTop:12,borderTop:"1px solid #f0f0f0"}}><div style={{fontSize:12,fontWeight:700,color:"#555",marginBottom:8}}>🛒 Additional Items</div><div style={{display:"flex",gap:8,marginBottom:8}}><input style={{...INP,flex:2}} placeholder="Item (e.g. Engine oil)" value={extraItem.item} onChange={e=>setExtraItem({...extraItem,item:e.target.value})}/><input type="number" step="0.01" style={{...INP,flex:1}} placeholder="R" value={extraItem.cost} onChange={e=>setExtraItem({...extraItem,cost:e.target.value})}/><button onClick={addExtra} style={{background:"#2c5fff",border:"none",borderRadius:10,padding:"0 14px",color:"#fff",fontWeight:700,fontSize:18,cursor:"pointer",fontFamily:"inherit",flexShrink:0}}>+</button></div>{(fillForm.extras||[]).map(e=>(<div key={e.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 10px",background:"#f8f9fc",borderRadius:8,marginBottom:6}}><span style={{fontSize:13}}>{e.item}</span><div style={{display:"flex",gap:8,alignItems:"center"}}><span style={{fontSize:13,fontWeight:700,color:"#1a7a48"}}>R{fmt(Number(e.cost))}</span><button onClick={()=>removeExtra(e.id)} style={{background:"#fff0f0",border:"none",borderRadius:6,padding:"2px 8px",cursor:"pointer",color:"#cc2222",fontSize:12,fontFamily:"inherit"}}>✕</button></div></div>))}</div>
+            {fillForm.litres&&fillForm.pricePerLitre&&(()=>{const ft=Number(fillForm.litres)*Number(fillForm.pricePerLitre);const ex=(fillForm.extras||[]).reduce((s,e)=>s+Number(e.cost||0),0);return(<div style={{marginTop:10,borderRadius:10,overflow:"hidden"}}><div style={{padding:"8px 12px",background:"#f0faf4",display:"flex",justifyContent:"space-between"}}><span style={{fontSize:12,color:"#888"}}>Fuel</span><span style={{fontSize:13,fontWeight:700,color:"#1a7a48"}}>R{fmt(ft)}</span></div>{ex>0&&<div style={{padding:"8px 12px",background:"#f5f0ff",display:"flex",justifyContent:"space-between"}}><span style={{fontSize:12,color:"#888"}}>Extras ({(fillForm.extras||[]).length})</span><span style={{fontSize:13,fontWeight:700,color:"#6a2ccc"}}>R{fmt(ex)}</span></div>}<div style={{padding:"9px 12px",background:"#1a2a6c",display:"flex",justifyContent:"space-between"}}><span style={{fontSize:12,color:"rgba(255,255,255,0.8)",fontWeight:600}}>Station Total</span><span style={{fontSize:14,fontWeight:800,color:"#fff"}}>R{fmt(ft+ex)}</span></div></div>);})()}
+            <div style={{marginTop:10}}><PhotoPicker value={fillForm.receipt} onChange={v=>setFillForm({...fillForm,receipt:v})}/></div>
+            <BtnP g="linear-gradient(135deg,#1a7a48,#2cb96a)" onClick={saveFill}>{editFillId?"Update":"Save Fill-Up"}</BtnP>{editFillId&&<BtnC onClick={()=>{setEditFillId(null);setFillForm(BLANK_FILL());}}/>}</Card>
+            <ST>Fuel History ({vFills.length})</ST>
             {vFills.length===0&&<div style={{color:"#bbb",fontSize:13,textAlign:"center",marginTop:20}}>No fill-ups for this period.</div>}
-            {[...vFills].reverse().map(f=>{
-              const fa=Number(f.totalAmount||0)-Number(f.oilCost||0);
-              const cpl=Number(f.litres||0)>0?fa/Number(f.litres||0):0;
-              const hasOil=Number(f.oilCost||0)>0;
-              return(
-                <Card key={f.id} style={{padding:"14px 16px"}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
-                    <div>
-                      <div style={{fontWeight:800,fontSize:14,color:"#1e2235"}}>{f.station||"Unknown Station"}</div>
-                      <div style={{fontSize:12,color:"#888",marginTop:1}}>{f.date} · {Number(f.odometer||0).toLocaleString()} km</div>
-                    </div>
-                    <span style={{fontSize:11,fontWeight:700,padding:"3px 10px",borderRadius:20,background:"#e8f4e8",color:"#1a7a48",whiteSpace:"nowrap"}}>{f.fuelType||"Diesel"}</span>
-                  </div>
-                  <div style={{display:"grid",gridTemplateColumns:"0.6fr 1.3fr 1fr 1fr",gap:6,marginBottom:8}}>
-                    <div style={{background:"#f3f4f9",borderRadius:8,padding:"7px 8px",textAlign:"center"}}>
-                      <div style={{fontSize:9,color:"#888",marginBottom:1}}>Litres</div>
-                      <div style={{fontSize:13,fontWeight:800,color:"#1e2235"}}>{parseFloat(Number(f.litres||0).toFixed(3))}</div>
-                    </div>
-                    <div style={{background:"#f0faf4",borderRadius:8,padding:"7px 8px",textAlign:"center"}}>
-                      <div style={{fontSize:9,color:"#888",marginBottom:1}}>Fuel Amt</div>
-                      <div style={{fontSize:13,fontWeight:800,color:"#1a7a48"}}>{fmt(fa)}</div>
-                    </div>
-                    {hasOil
-                      ? <div style={{background:"#fff8ee",borderRadius:8,padding:"7px 8px",textAlign:"center"}}>
-                          <div style={{fontSize:9,color:"#888",marginBottom:1}}>Oil</div>
-                          <div style={{fontSize:13,fontWeight:800,color:"#b85c00"}}>{fmt(Number(f.oilCost))}</div>
-                        </div>
-                      : <div style={{background:"#f3f4f9",borderRadius:8,padding:"7px 8px",textAlign:"center"}}>
-                          <div style={{fontSize:9,color:"#888",marginBottom:1}}>Oil</div>
-                          <div style={{fontSize:13,fontWeight:700,color:"#bbb"}}>—</div>
-                        </div>
-                    }
-                    <div style={{background:"#eef2ff",borderRadius:8,padding:"7px 8px",textAlign:"center"}}>
-                      <div style={{fontSize:9,color:"#888",marginBottom:1}}>R/Litre</div>
-                      <div style={{fontSize:13,fontWeight:800,color:"#2c5fff"}}>{cpl>0?fmt(cpl):"—"}</div>
-                    </div>
-                  </div>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:4}}>
-                    <div style={{fontSize:12,color:"#888",fontStyle:"italic"}}>{f.notes||""}</div>
-                    <div style={{fontWeight:800,fontSize:15,color:"#1e2235"}}>{fmt(Number(f.totalAmount||0))}</div>
-                  </div>
-                  {f.receipt&&<img src={f.receipt} alt="r" style={{width:"100%",maxHeight:100,objectFit:"cover",borderRadius:8,marginTop:8,border:"1px solid #eee"}}/>}
-                  <div style={{display:"flex",gap:8,marginTop:10}}>
-                    <Eb color="#1a7a48" bg="#f0faf4" onClick={()=>{setEditFillId(f.id);setFillForm({...f});window.scrollTo(0,0);}}/>
-                    <Db onClick={()=>setFills(fs=>fs.filter(x=>x.id!==f.id))}/>
-                  </div>
-                </Card>
-              );
-            })}
+            {[...vFills].reverse().map(f=>{const ft=Number(f.litres||0)*Number(f.pricePerLitre||0);const ex=(f.extras||[]).reduce((s,e)=>s+Number(e.cost||0),0);return(<Card key={f.id}><div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}><div style={{flex:1}}><div style={{fontWeight:700,fontSize:14,marginBottom:2}}>{f.date}</div><div style={{fontSize:12,color:"#888"}}>{f.station||f.notes||"Fill-up"}{f.odometer?" · "+Number(f.odometer).toLocaleString()+" km":""}</div><div style={{marginTop:5,fontSize:13}}><b>{fmtKm(f.litres)} L</b> @ R{f.pricePerLitre}/L = <b style={{color:"#1a7a48"}}>R{fmt(ft)}</b></div>{(f.extras||[]).map(e=><div key={e.id} style={{fontSize:12,color:"#6a2ccc",marginTop:2}}>+ {e.item}: R{fmt(Number(e.cost))}</div>)}{ex>0&&<div style={{marginTop:4,padding:"4px 10px",background:"#1a2a6c",borderRadius:8,fontSize:12,fontWeight:700,color:"#fff",display:"inline-block"}}>Station Total: R{fmt(ft+ex)}</div>}{f.receipt&&<img src={f.receipt} alt="r" style={{width:"100%",maxHeight:100,objectFit:"cover",borderRadius:8,marginTop:8,border:"1px solid #eee"}}/>}</div><div style={{display:"flex",gap:6,marginLeft:8}}><Eb color="#1a7a48" bg="#f0faf4" onClick={()=>{setEditFillId(f.id);setFillForm({...f,extras:f.extras||[]});window.scrollTo(0,0);}}/><Db onClick={()=>setFills(fs=>fs.filter(x=>x.id!==f.id))}/></div></div></Card>);})}
           </div>
         )}
 
@@ -1265,22 +1023,11 @@ export default function App(){
               <div style={{fontSize:12,color:"#7a5c00",lineHeight:1.6}}>SA tax year runs <b>1 March to 28 February</b>. SARS requires the date, purpose, start and end odometer, and distance for every business trip. Your exported logbook contains all of this.</div>
             </Card>
 
-            <Card style={{background:"#f0f4ff",border:"1px solid #b0c4ff"}}>
-              <div style={{fontSize:13,fontWeight:700,color:"#1a52cc",marginBottom:4}}>💬 Beta Feedback</div>
-              <div style={{fontSize:12,color:"#555",marginBottom:12,lineHeight:1.6}}>Spotted a bug or have a suggestion? We'd love to hear from you during the beta.</div>
-              <a href={`mailto:logbookprosa@gmail.com?subject=${encodeURIComponent("Logbook Pro SA Beta Feedback")}&body=${encodeURIComponent("Hi, here is my feedback:\n\n")}`} style={{display:"block",padding:"12px",borderRadius:12,background:`linear-gradient(135deg,${BRAND.navy},${BRAND.blue})`,color:"#fff",fontWeight:700,fontSize:15,textAlign:"center",textDecoration:"none"}}>✉️ Send Feedback</a>
-            </Card>
-
             {!isPro&&<div onClick={()=>setShowUpgrade(true)} style={{background:`linear-gradient(135deg,${BRAND.orange},#c45e00)`,borderRadius:14,padding:"14px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer",marginBottom:14}}><div style={{display:"flex",alignItems:"center",gap:10}}><LogoMark size={24}/><div><div style={{fontWeight:800,fontSize:14,color:"#fff"}}>Upgrade to Pro</div><div style={{fontSize:12,color:"rgba(255,255,255,0.85)"}}>Fleet management · SARS calculator · Document vault</div></div></div><div style={{fontSize:22,color:"#fff"}}>›</div></div>}
           </div>
         )}
 
       </div>
-
-      {/* QUICK-ADD TRIP BUTTON — Dashboard only */}
-      {tab==="dashboard"&&(
-        <button onClick={()=>{setShowTripList(false);setDescWarn(false);setTab("trips");window.scrollTo(0,0);}} style={{position:"fixed",bottom:isPro?116:84,right:16,padding:"12px 18px",borderRadius:30,border:"none",background:`linear-gradient(135deg,${BRAND.navy},${BRAND.blue})`,color:"#fff",fontSize:13,fontWeight:800,cursor:"pointer",boxShadow:"0 4px 20px rgba(26,107,196,0.5)",display:"flex",alignItems:"center",gap:6,zIndex:25,fontFamily:"inherit",whiteSpace:"nowrap"}}>＋ Quick Add Trip</button>
-      )}
 
       {/* MAP MODAL */}
       {mapTrip&&(<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",zIndex:100,display:"flex",alignItems:"flex-end"}} onClick={()=>setMapTrip(null)}><div style={{width:"100%",maxWidth:480,margin:"0 auto",background:"#fff",borderRadius:"20px 20px 0 0",padding:"20px 16px 32px"}} onClick={e=>e.stopPropagation()}><div style={{fontWeight:800,fontSize:16,marginBottom:4}}>{mapTrip.description||"Trip"}</div><div style={{fontSize:13,color:"#888",marginBottom:14}}>{mapTrip.date} · {mapTrip.from} → {mapTrip.to} · {fmtKm(Number(mapTrip.odomEnd||0)-Number(mapTrip.odomStart||0))} km</div><iframe title="map" style={{width:"100%",height:260,borderRadius:12,border:"none"}} src={`https://maps.google.com/maps?q=${encodeURIComponent(mapTrip.from)}&daddr=${encodeURIComponent(mapTrip.to)}&output=embed`} allowFullScreen/><button onClick={()=>setMapTrip(null)} style={{width:"100%",marginTop:12,padding:"11px",borderRadius:12,border:"none",background:"#f0f0f0",color:"#555",fontWeight:700,fontSize:14,cursor:"pointer",fontFamily:"inherit"}}>Close</button><a href={`https://www.google.com/maps/dir/${encodeURIComponent(mapTrip.from)}/${encodeURIComponent(mapTrip.to)}`} target="_blank" rel="noreferrer" style={{display:"block",marginTop:8,padding:"11px",borderRadius:12,background:"linear-gradient(135deg,#1a2a6c,#2c5fff)",color:"#fff",fontWeight:700,fontSize:14,textAlign:"center",textDecoration:"none"}}>Open in Google Maps</a></div></div>)}
